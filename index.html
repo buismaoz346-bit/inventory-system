@@ -268,9 +268,10 @@
         <a class="nav-link" data-view="inventory" href="#"><i data-lucide="package"></i><span>Inventory</span></a>
         <a class="nav-link" data-view="projects" href="#"><i data-lucide="briefcase"></i><span>Projects (BOM)</span></a>
         <a class="nav-link" data-view="categories" href="#"><i data-lucide="tags"></i><span>Categories</span></a>
+        <a class="nav-link" data-view="map" href="#"><i data-lucide="map"></i><span>Location Map</span></a>
         <a class="nav-link" data-view="activity" href="#"><i data-lucide="history"></i><span>Activity Log</span></a>
         <span class="nav-label" style="margin-top:16px">TOOLS</span>
-        <a class="nav-link" data-view="calculator" href="#"><i data-lucide="calculator"></i><span>Resistor Calculator</span></a>
+        <a class="nav-link" data-view="tools" href="#"><i data-lucide="wrench"></i><span>Engineering Tools</span></a>
       </nav>
       <div class="sidebar-footer">
         <div class="sidebar-footer-content"><i data-lucide="info"></i><span>ElectroParts IMS v2.0</span></div>
@@ -364,6 +365,12 @@
           </div>
         </section>
 
+        <!-- MAP VIEW -->
+        <section class="view" id="mapView">
+          <div class="view-top"><h1 class="view-title">Location Map</h1><p class="view-subtitle">Visual overview of your physical storage bins</p></div>
+          <div id="mapGrid" style="display:flex; flex-wrap:wrap; gap:16px; margin-top:16px;"></div>
+        </section>
+
         <!-- CATEGORIES VIEW -->
         <section class="view" id="categoriesView">
           <div class="view-top"><h1 class="view-title">Categories</h1><p class="view-subtitle">Organize your components by type</p></div>
@@ -379,86 +386,28 @@
           </div>
         </section>
 
-        <!-- RESISTOR CALCULATOR VIEW -->
-        <section class="view" id="calculatorView">
-          <div class="view-top">
-            <h1 class="view-title">Resistor Color Code Calculator</h1>
-            <p class="view-subtitle">Type color band names in CAPITAL LETTERS (e.g. BROWN, RED, ORANGE)</p>
-          </div>
-
-          <div class="calc-layout">
-            <!-- Visual Resistor -->
-            <div class="card calc-visual-card">
-              <div class="resistor-visual">
-                <div class="resistor-lead"></div>
-                <div class="resistor-body">
-                  <div class="resistor-band" id="bandVisual1" title="Band 1"></div>
-                  <div class="resistor-band" id="bandVisual2" title="Band 2"></div>
-                  <div class="resistor-band" id="bandVisual3" title="Multiplier"></div>
-                  <div class="resistor-band resistor-band--tolerance" id="bandVisual4" title="Tolerance"></div>
-                </div>
-                <div class="resistor-lead"></div>
-              </div>
-
-              <!-- Result -->
-              <div class="calc-result" id="calcResult">
-                <div class="calc-result-value" id="calcResultValue">—</div>
-                <div class="calc-result-tolerance" id="calcResultTolerance"></div>
-              </div>
+        <!-- ENGINEERING TOOLS VIEW -->
+        <section class="view" id="toolsView">
+          <div class="view-top"><h1 class="view-title">Engineering Toolbox</h1><p class="view-subtitle">Calculators and utilities for electronics design</p></div>
+          <div style="display:flex; gap:24px; align-items:flex-start; margin-top:16px;" class="tools-layout">
+            <div class="card" style="width:250px; flex-shrink:0; overflow:hidden;" id="toolsSidebar">
+              <button class="tool-tab active" onclick="Tools.switch('resistor')"><i data-lucide="palette"></i> Resistor Color Code</button>
+              <button class="tool-tab" onclick="Tools.switch('ohms')"><i data-lucide="zap"></i> Ohm's Law & Power</button>
+              <button class="tool-tab" onclick="Tools.switch('led')"><i data-lucide="lightbulb"></i> LED Series Resistor</button>
+              <button class="tool-tab" onclick="Tools.switch('divider')"><i data-lucide="split-square-horizontal"></i> Voltage Divider</button>
+              <button class="tool-tab" onclick="Tools.switch('rc')"><i data-lucide="timer"></i> RC Time Constant</button>
+              <button class="tool-tab" onclick="Tools.switch('555')"><i data-lucide="cpu"></i> 555 Timer</button>
+              <button class="tool-tab" onclick="Tools.switch('lm317')"><i data-lucide="sliders"></i> LM317 Regulator</button>
+              <button class="tool-tab" onclick="Tools.switch('pcb')"><i data-lucide="circuit-board"></i> PCB Trace Width</button>
+              <button class="tool-tab" onclick="Tools.switch('units')"><i data-lucide="arrow-right-left"></i> Unit Converter</button>
+              <button class="tool-tab" onclick="Tools.switch('battery')"><i data-lucide="battery-charging"></i> Battery Life</button>
             </div>
-
-            <!-- Input Form -->
-            <div class="card calc-form-card">
-              <h3 class="card-title" style="margin-bottom:16px">Enter Band Colors</h3>
-              <div class="calc-inputs">
-                <div class="calc-input-group">
-                  <label>Band 1 — 1st Digit</label>
-                  <input type="text" id="calcBand1" class="calc-input" placeholder="e.g. BROWN" autocomplete="off">
-                  <span class="calc-hint" id="calcHint1"></span>
-                </div>
-                <div class="calc-input-group">
-                  <label>Band 2 — 2nd Digit</label>
-                  <input type="text" id="calcBand2" class="calc-input" placeholder="e.g. BLACK" autocomplete="off">
-                  <span class="calc-hint" id="calcHint2"></span>
-                </div>
-                <div class="calc-input-group">
-                  <label>Band 3 — Multiplier</label>
-                  <input type="text" id="calcBand3" class="calc-input" placeholder="e.g. RED" autocomplete="off">
-                  <span class="calc-hint" id="calcHint3"></span>
-                </div>
-                <div class="calc-input-group">
-                  <label>Band 4 — Tolerance</label>
-                  <input type="text" id="calcBand4" class="calc-input" placeholder="e.g. GOLD" autocomplete="off">
-                  <span class="calc-hint" id="calcHint4"></span>
-                </div>
-              </div>
-              <button class="btn btn-primary btn-full" id="calcBtn" style="margin-top:16px">
-                <i data-lucide="calculator"></i> Calculate Resistance
-              </button>
-              <button class="btn btn-ghost btn-full" id="calcClearBtn" style="margin-top:8px">Clear</button>
-
-              <!-- Color Reference Table -->
-              <div class="calc-ref">
-                <h4>Color Reference</h4>
-                <div class="calc-ref-grid">
-                  <div class="calc-ref-item"><span class="calc-ref-swatch" style="background:#000"></span>BLACK = 0</div>
-                  <div class="calc-ref-item"><span class="calc-ref-swatch" style="background:#8B4513"></span>BROWN = 1</div>
-                  <div class="calc-ref-item"><span class="calc-ref-swatch" style="background:#FF0000"></span>RED = 2</div>
-                  <div class="calc-ref-item"><span class="calc-ref-swatch" style="background:#FF8C00"></span>ORANGE = 3</div>
-                  <div class="calc-ref-item"><span class="calc-ref-swatch" style="background:#FFD700"></span>YELLOW = 4</div>
-                  <div class="calc-ref-item"><span class="calc-ref-swatch" style="background:#228B22"></span>GREEN = 5</div>
-                  <div class="calc-ref-item"><span class="calc-ref-swatch" style="background:#0000FF"></span>BLUE = 6</div>
-                  <div class="calc-ref-item"><span class="calc-ref-swatch" style="background:#8B00FF"></span>VIOLET = 7</div>
-                  <div class="calc-ref-item"><span class="calc-ref-swatch" style="background:#808080"></span>GREY = 8</div>
-                  <div class="calc-ref-item"><span class="calc-ref-swatch" style="background:#FFF;border:1px solid #ccc"></span>WHITE = 9</div>
-                  <div class="calc-ref-item"><span class="calc-ref-swatch" style="background:#FFD700"></span>GOLD = ×0.1 / ±5%</div>
-                  <div class="calc-ref-item"><span class="calc-ref-swatch" style="background:#C0C0C0"></span>SILVER = ×0.01 / ±10%</div>
-                </div>
-              </div>
+            
+            <div class="card" style="flex:1; padding:24px; min-height:400px;" id="toolContentArea">
+              <!-- Dynamically populated by Tools.js -->
             </div>
           </div>
         </section>
-
         <!-- ========== QR PRINT MODAL ========== -->
         <div class="modal-overlay" id="qrPrintModal">
           <div class="modal modal-sm" style="text-align: center;">
@@ -496,6 +445,7 @@
   </div>
 
   <!-- Application Logic -->
+  <script src="js/tools.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

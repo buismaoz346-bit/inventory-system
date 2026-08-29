@@ -494,12 +494,66 @@ const UI = {
       case 'inventory': UI.renderInventory(); break;
       case 'categories': UI.renderCategories(); break;
       case 'projects': UI.renderProjects(); break;
+      case 'map': UI.renderMap(); break;
       case 'activity': UI.renderActivity(); break;
-      case 'calculator': ResistorCalc.init(); break;
+      case 'tools': if(window.Tools) Tools.render(); break;
     }
 
     document.getElementById('sidebar')?.classList.remove('open');
     document.getElementById('sidebarOverlay')?.classList.remove('active');
+  },
+
+  renderMap() {
+    const grid = document.getElementById('mapGrid');
+    if (!grid) return;
+    
+    // Extract unique locations, filter out empty ones
+    const locations = {};
+    state.components.forEach(c => {
+      let loc = (c.location || '').trim();
+      if (!loc) loc = 'Unassigned';
+      if (!locations[loc]) locations[loc] = [];
+      locations[loc].push(c);
+    });
+    
+    const sortedLocs = Object.keys(locations).sort((a,b) => {
+      if (a === 'Unassigned') return 1;
+      if (b === 'Unassigned') return -1;
+      return a.localeCompare(b);
+    });
+    
+    grid.innerHTML = sortedLocs.map(loc => {
+      const comps = locations[loc];
+      const itemsHtml = comps.slice(0, 5).map(c => `<div style="font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">• ${escapeHtml(c.name)}</div>`).join('');
+      const moreHtml = comps.length > 5 ? `<div style="font-size:11px; color:var(--text-secondary); margin-top:4px;">+ ${comps.length - 5} more</div>` : '';
+      
+      return `
+        <div class="card" style="width:200px; cursor:pointer; transition:transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'" onclick="UI.filterInventoryByLocation('${escapeHtml(loc)}')">
+          <div class="card-header" style="background:var(--color-surface-hover); border-bottom:1px solid var(--border-color); padding:12px;">
+            <h3 class="card-title" style="display:flex; align-items:center; gap:8px;"><i data-lucide="box" style="width:16px;"></i> ${escapeHtml(loc)}</h3>
+          </div>
+          <div style="padding:12px;">
+            <div style="margin-bottom:8px; font-weight:600; font-size:12px;">${comps.length} Item(s)</div>
+            ${itemsHtml}
+            ${moreHtml}
+          </div>
+        </div>
+      `;
+    }).join('');
+    refreshIcons();
+  },
+
+  filterInventoryByLocation(loc) {
+    if (loc === 'Unassigned') loc = '^$'; // regex to match empty
+    else loc = `^${loc}$`;
+    
+    UI.switchView('inventory');
+    const invSearch = document.getElementById('inventorySearch');
+    if (invSearch) {
+      invSearch.value = `loc:${loc}`;
+      state.searchQuery = `loc:${loc}`;
+      UI.renderInventory();
+    }
   },
 
   renderDashboard() {
