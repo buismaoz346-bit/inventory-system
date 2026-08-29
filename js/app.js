@@ -97,11 +97,23 @@ const Storage = {
     if (typeof FIREBASE_ENABLED !== 'undefined' && FIREBASE_ENABLED && firebase.auth().currentUser) {
       const uid = firebase.auth().currentUser.uid;
       firebase.database().ref('users/' + uid).on('value', snap => {
-        const data = snap.val() || {};
-        state.components = data.components || [];
-        state.categories = data.categories || [...DEFAULT_CATEGORIES];
-        state.activity = data.activity || [];
-        state.projects = data.projects || [];
+        const data = snap.val();
+        if (!data) {
+          // Cloud is completely empty (new account). Upload local offline data to cloud!
+          state.components = Storage.get(CONFIG.STORAGE.COMPONENTS) || [];
+          state.categories = Storage.get(CONFIG.STORAGE.CATEGORIES) || [...DEFAULT_CATEGORIES];
+          state.activity = Storage.get(CONFIG.STORAGE.ACTIVITY) || [];
+          state.projects = Storage.get(CONFIG.STORAGE.PROJECTS) || [];
+          Storage.saveComponents();
+          Storage.saveCategories();
+          Storage.saveActivity();
+          Storage.saveProjects();
+        } else {
+          state.components = data.components || [];
+          state.categories = data.categories || [...DEFAULT_CATEGORIES];
+          state.activity = data.activity || [];
+          state.projects = data.projects || [];
+        }
         UI.switchView(state.currentView);
       }, (error) => {
         console.error("Firebase Sync Error:", error);
@@ -1586,6 +1598,18 @@ const Handlers = {
 
     document.getElementById('exportBtn')?.addEventListener('click', exportCSV);
     
+    document.getElementById('forceSyncBtn')?.addEventListener('click', () => {
+      // Force save local state to cloud and local storage
+      if (typeof FIREBASE_ENABLED !== 'undefined' && FIREBASE_ENABLED && firebase.auth().currentUser) {
+        Storage.saveComponents();
+        Storage.saveCategories();
+        Storage.saveProjects();
+        UI.showToast('Data forcefully synced to cloud!', 'success');
+      } else {
+        UI.showToast('Cannot sync: Not connected to cloud', 'error');
+      }
+    });
+
     document.getElementById('importBtn')?.addEventListener('click', () => {
       document.getElementById('importCsv')?.click();
     });
