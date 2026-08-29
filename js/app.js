@@ -96,7 +96,7 @@ const Storage = {
   loadAll() {
     if (typeof FIREBASE_ENABLED !== 'undefined' && FIREBASE_ENABLED && firebase.auth().currentUser) {
       const uid = firebase.auth().currentUser.uid;
-      firebase.database().ref('users/' + uid).once('value').then(snap => {
+      firebase.database().ref('users/' + uid).on('value', snap => {
         const data = snap.val() || {};
         state.components = data.components || [];
         state.categories = data.categories || [...DEFAULT_CATEGORIES];
