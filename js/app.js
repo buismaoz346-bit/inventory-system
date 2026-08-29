@@ -92,13 +92,39 @@ const Storage = {
     catch (e) { console.error('Storage error:', e); }
   },
   loadAll() {
-    state.components = Storage.get(CONFIG.STORAGE.COMPONENTS) || [];
-    state.categories = Storage.get(CONFIG.STORAGE.CATEGORIES) || [];
-    state.activity = Storage.get(CONFIG.STORAGE.ACTIVITY) || [];
+    if (typeof FIREBASE_ENABLED !== 'undefined' && FIREBASE_ENABLED && firebase.auth().currentUser) {
+      const uid = firebase.auth().currentUser.uid;
+      firebase.database().ref('users/' + uid).once('value').then(snap => {
+        const data = snap.val() || {};
+        state.components = data.components || [];
+        state.categories = data.categories || [...DEFAULT_CATEGORIES];
+        state.activity = data.activity || [];
+        UI.switchView(state.currentView);
+      });
+    } else {
+      state.components = Storage.get(CONFIG.STORAGE.COMPONENTS) || [];
+      state.categories = Storage.get(CONFIG.STORAGE.CATEGORIES) || [];
+      state.activity = Storage.get(CONFIG.STORAGE.ACTIVITY) || [];
+    }
   },
-  saveComponents() { Storage.set(CONFIG.STORAGE.COMPONENTS, state.components); },
-  saveCategories() { Storage.set(CONFIG.STORAGE.CATEGORIES, state.categories); },
-  saveActivity() { Storage.set(CONFIG.STORAGE.ACTIVITY, state.activity); }
+  saveComponents() { 
+    if (typeof FIREBASE_ENABLED !== 'undefined' && FIREBASE_ENABLED && firebase.auth().currentUser) {
+      firebase.database().ref('users/' + firebase.auth().currentUser.uid + '/components').set(state.components);
+    }
+    Storage.set(CONFIG.STORAGE.COMPONENTS, state.components);
+  },
+  saveCategories() { 
+    if (typeof FIREBASE_ENABLED !== 'undefined' && FIREBASE_ENABLED && firebase.auth().currentUser) {
+      firebase.database().ref('users/' + firebase.auth().currentUser.uid + '/categories').set(state.categories);
+    }
+    Storage.set(CONFIG.STORAGE.CATEGORIES, state.categories); 
+  },
+  saveActivity() { 
+    if (typeof FIREBASE_ENABLED !== 'undefined' && FIREBASE_ENABLED && firebase.auth().currentUser) {
+      firebase.database().ref('users/' + firebase.auth().currentUser.uid + '/activity').set(state.activity);
+    }
+    Storage.set(CONFIG.STORAGE.ACTIVITY, state.activity); 
+  }
 };
 
 // ============================================================
@@ -232,9 +258,12 @@ const Auth = {
     document.getElementById('loginPage').style.display = 'none';
     document.getElementById('appLayout').style.display = 'flex';
     
+    // Load their cloud data
+    Storage.loadAll();
+    
     // Refresh UI
     UI.switchView('dashboard');
-    UI.showToast(`Welcome back, ${user.name}! 👋`, 'success');
+    UI.showToast(`Welcome back, ${user.name || user.email.split('@')[0]}! 👋`, 'success');
   },
 
   logout() {
