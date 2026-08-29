@@ -25,14 +25,35 @@ const DEFAULT_CATEGORIES = [
   { id: 'cat-1', name: 'Resistors', color: '#3B82F6', icon: 'zap' },
   { id: 'cat-2', name: 'Capacitors', color: '#10B981', icon: 'battery-charging' },
   { id: 'cat-3', name: 'ICs & Microcontrollers', color: '#8B5CF6', icon: 'cpu' },
-  { id: 'cat-4', name: 'LEDs & Displays', color: '#F59E0B', icon: 'lightbulb' },
+  { id: 'cat-4', name: 'LEDs & Indicators', color: '#F59E0B', icon: 'lightbulb' },
   { id: 'cat-5', name: 'Sensors', color: '#F97316', icon: 'thermometer' },
-  { id: 'cat-6', name: 'Connectors', color: '#EF4444', icon: 'plug' },
+  { id: 'cat-6', name: 'Connectors & Terminals', color: '#EF4444', icon: 'plug' },
   { id: 'cat-7', name: 'Passive Components', color: '#14B8A6', icon: 'disc' },
   { id: 'cat-8', name: 'Development Boards', color: '#6366F1', icon: 'circuit-board' },
-    { id: 'cat-9', name: 'Motors & Actuators', color: '#EC4899', icon: 'fan' },
-    { id: 'cat-10', name: 'Wires & Cables', color: '#F43F5E', icon: 'cable' },
-    { id: 'cat-11', name: 'Gears & Mechanical', color: '#64748B', icon: 'settings' }
+  { id: 'cat-9', name: 'Motors & Actuators', color: '#EC4899', icon: 'fan' },
+  { id: 'cat-10', name: 'Wires & Cables', color: '#F43F5E', icon: 'cable' },
+  { id: 'cat-11', name: 'Gears & Mechanical', color: '#64748B', icon: 'settings' },
+  { id: 'cat-12', name: 'Chemicals & Materials', color: '#06B6D4', icon: 'flask-conical' },
+  { id: 'cat-13', name: 'Power & Batteries', color: '#84CC16', icon: 'battery' },
+  { id: 'cat-14', name: 'Switches & Relays', color: '#A855F7', icon: 'toggle-left' },
+  { id: 'cat-15', name: 'PCBs & Prototyping', color: '#10B981', icon: 'grid' },
+  { id: 'cat-16', name: 'Fasteners & Hardware', color: '#64748B', icon: 'paperclip' },
+  { id: 'cat-17', name: 'Tools & Equipment', color: '#F59E0B', icon: 'wrench' },
+  { id: 'cat-18', name: 'Enclosures & Cases', color: '#3B82F6', icon: 'box' },
+  { id: 'cat-19', name: 'Audio & Acoustics', color: '#EC4899', icon: 'volume-2' },
+  { id: 'cat-20', name: 'RF & Wireless', color: '#6366F1', icon: 'radio' },
+  { id: 'cat-21', name: 'Optoelectronics', color: '#14B8A6', icon: 'eye' },
+  { id: 'cat-22', name: 'Diodes & Rectifiers', color: '#F43F5E', icon: 'fast-forward' },
+  { id: 'cat-23', name: 'Transistors & Thyristors', color: '#8B5CF6', icon: 'share-2' },
+  { id: 'cat-24', name: 'Protective Components', color: '#EF4444', icon: 'shield-alert' },
+  { id: 'cat-25', name: 'Thermal Management', color: '#06B6D4', icon: 'snowflake' },
+  { id: 'cat-26', name: 'Memory & Storage', color: '#3B82F6', icon: 'hard-drive' },
+  { id: 'cat-27', name: 'Displays & Screens', color: '#10B981', icon: 'monitor' },
+  { id: 'cat-28', name: 'Crystals & Oscillators', color: '#F59E0B', icon: 'activity' },
+  { id: 'cat-29', name: 'Modules & Breakout Boards', color: '#A855F7', icon: 'layers' },
+  { id: 'cat-30', name: 'Magnetics & Ferrites', color: '#EF4444', icon: 'magnet' },
+  { id: 'cat-31', name: 'Optics & Lenses', color: '#84CC16', icon: 'camera' },
+  { id: 'cat-32', name: 'Test & Measurement', color: '#F97316', icon: 'ruler' }
 ];
 
 const SAMPLE_COMPONENTS = [
@@ -1894,6 +1915,7 @@ function init() {
 // START APP
 document.addEventListener('DOMContentLoaded', init);
 window.UI = UI;
+
 
 
 
