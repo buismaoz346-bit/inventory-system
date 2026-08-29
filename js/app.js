@@ -56,32 +56,7 @@ const DEFAULT_CATEGORIES = [
   { id: 'cat-32', name: 'Test & Measurement', color: '#F97316', icon: 'ruler' }
 ];
 
-const SAMPLE_COMPONENTS = [
-  {
-    id: 'comp-1', name: 'Arduino Uno R3', category: 'cat-8',
-    quantity: 5, minStock: 2, location: 'Shelf A-3',
-    description: 'ATmega328P based development board',
-    purchasePrice: 3500, supplier: 'Daraz',
-    tags: ['arduino', 'mcu', 'dev-board'], imageUrl: '',
-    dateAdded: '2026-08-15', lastUpdated: '2026-08-15'
-  },
-  {
-    id: 'comp-2', name: '10kΩ Resistor Pack (100pcs)', category: 'cat-1',
-    quantity: 85, minStock: 20, location: 'Drawer B-1',
-    description: '1/4W metal film resistors, ±1% tolerance',
-    purchasePrice: 450, supplier: 'Hall Road',
-    tags: ['resistor', '10k', 'through-hole'], imageUrl: '',
-    dateAdded: '2026-08-10', lastUpdated: '2026-08-20'
-  },
-  {
-    id: 'comp-3', name: 'ESP32-WROOM-32D', category: 'cat-8',
-    quantity: 4, minStock: 2, location: 'Shelf A-3',
-    description: 'Wi-Fi + Bluetooth dual-mode module',
-    purchasePrice: 1200, supplier: 'AliExpress',
-    tags: ['esp32', 'wifi', 'iot'], imageUrl: '',
-    dateAdded: '2026-08-22', lastUpdated: '2026-08-22'
-  }
-];
+const SAMPLE_COMPONENTS = [];
 
 // ============================================================
 // APPLICATION STATE
@@ -1923,6 +1898,7 @@ function init() {
 // START APP
 document.addEventListener('DOMContentLoaded', init);
 window.UI = UI;
+
 
 
 
