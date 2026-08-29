@@ -170,13 +170,55 @@ const Tools = {
 
   getUnitsHtml() {
     return `
-      <h2 style="margin-bottom:16px;">Capacitance Unit Converter</h2>
-      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px;">
-        <div class="form-group"><label>PicoFarad (pF)</label><input type="number" id="t-u-p" class="form-control" step="any"></div>
-        <div class="form-group"><label>NanoFarad (nF)</label><input type="number" id="t-u-n" class="form-control" step="any"></div>
-        <div class="form-group"><label>MicroFarad (µF)</label><input type="number" id="t-u-m" class="form-control" step="any"></div>
+      <h2 style="margin-bottom:16px;">Universal Unit Converter</h2>
+      <div class="form-group" style="max-width:200px; margin-bottom:16px;">
+        <select id="t-u-type" class="form-control" onchange="Tools.switchUnitType(this.value)">
+          <option value="cap">Capacitance (F)</option>
+          <option value="res">Resistance (Ω)</option>
+          <option value="cur">Current (A)</option>
+          <option value="vol">Voltage (V)</option>
+        </select>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px;" id="t-u-grid">
+        ${this.getUnitInputs('cap')}
       </div>
     `;
+  },
+  
+  getUnitInputs(type) {
+    if (type === 'cap') {
+      return `
+        <div class="form-group"><label>PicoFarad (pF)</label><input type="number" id="t-u-1" class="form-control" step="any"></div>
+        <div class="form-group"><label>NanoFarad (nF)</label><input type="number" id="t-u-2" class="form-control" step="any"></div>
+        <div class="form-group"><label>MicroFarad (µF)</label><input type="number" id="t-u-3" class="form-control" step="any"></div>
+      `;
+    }
+    if (type === 'res') {
+      return `
+        <div class="form-group"><label>Ohm (Ω)</label><input type="number" id="t-u-1" class="form-control" step="any"></div>
+        <div class="form-group"><label>KiloOhm (kΩ)</label><input type="number" id="t-u-2" class="form-control" step="any"></div>
+        <div class="form-group"><label>MegaOhm (MΩ)</label><input type="number" id="t-u-3" class="form-control" step="any"></div>
+      `;
+    }
+    if (type === 'cur') {
+      return `
+        <div class="form-group"><label>MicroAmp (µA)</label><input type="number" id="t-u-1" class="form-control" step="any"></div>
+        <div class="form-group"><label>MilliAmp (mA)</label><input type="number" id="t-u-2" class="form-control" step="any"></div>
+        <div class="form-group"><label>Ampere (A)</label><input type="number" id="t-u-3" class="form-control" step="any"></div>
+      `;
+    }
+    if (type === 'vol') {
+      return `
+        <div class="form-group"><label>MilliVolt (mV)</label><input type="number" id="t-u-1" class="form-control" step="any"></div>
+        <div class="form-group"><label>Volt (V)</label><input type="number" id="t-u-2" class="form-control" step="any"></div>
+        <div class="form-group"><label>KiloVolt (kV)</label><input type="number" id="t-u-3" class="form-control" step="any"></div>
+      `;
+    }
+  },
+
+  switchUnitType(type) {
+    document.getElementById('t-u-grid').innerHTML = this.getUnitInputs(type);
+    this.attachUnitListeners(type);
   },
 
   getBatteryHtml() {
@@ -233,14 +275,22 @@ const Tools = {
       this.calcPcb();
     }
     else if (tool === 'units') {
-      bind('t-u-p', (e) => this.calcUnits(e.target.value, 'p'));
-      bind('t-u-n', (e) => this.calcUnits(e.target.value, 'n'));
-      bind('t-u-m', (e) => this.calcUnits(e.target.value, 'm'));
+      this.attachUnitListeners('cap');
     }
     else if (tool === 'battery') {
       ['t-b-c','t-b-i','t-b-d'].forEach(id => bind(id, () => this.calcBattery()));
       this.calcBattery();
     }
+  },
+
+  attachUnitListeners(type) {
+    const bind = (id, fn) => {
+      const el = document.getElementById(id);
+      if (el) el.oninput = fn; // Use oninput to easily overwrite old listeners when switching type
+    };
+    bind('t-u-1', (e) => this.calcUnits(e.target.value, 1, type));
+    bind('t-u-2', (e) => this.calcUnits(e.target.value, 2, type));
+    bind('t-u-3', (e) => this.calcUnits(e.target.value, 3, type));
   },
 
   fmt(val, unit) {
@@ -362,21 +412,35 @@ const Tools = {
     }
   },
 
-  calcUnits(val, type) {
+  calcUnits(val, fieldIndex, type) {
     const v = parseFloat(val);
     if (isNaN(v)) {
-      if (type !== 'p') document.getElementById('t-u-p').value = '';
-      if (type !== 'n') document.getElementById('t-u-n').value = '';
-      if (type !== 'm') document.getElementById('t-u-m').value = '';
+      if (fieldIndex !== 1) document.getElementById('t-u-1').value = '';
+      if (fieldIndex !== 2) document.getElementById('t-u-2').value = '';
+      if (fieldIndex !== 3) document.getElementById('t-u-3').value = '';
       return;
     }
-    let p, n, m;
-    if (type === 'p') { p = v; n = v/1000; m = v/1000000; }
-    if (type === 'n') { n = v; p = v*1000; m = v/1000; }
-    if (type === 'm') { m = v; n = v*1000; p = v*1000000; }
-    if (type !== 'p') document.getElementById('t-u-p').value = p;
-    if (type !== 'n') document.getElementById('t-u-n').value = n;
-    if (type !== 'm') document.getElementById('t-u-m').value = m;
+    
+    let mult1, mult2, mult3; 
+    if (type === 'cap') { mult1 = 1e-12; mult2 = 1e-9; mult3 = 1e-6; }
+    if (type === 'res') { mult1 = 1; mult2 = 1e3; mult3 = 1e6; }
+    if (type === 'cur') { mult1 = 1e-6; mult2 = 1e-3; mult3 = 1; }
+    if (type === 'vol') { mult1 = 1e-3; mult2 = 1; mult3 = 1e3; }
+
+    let base = 0;
+    if (fieldIndex === 1) base = v * mult1;
+    if (fieldIndex === 2) base = v * mult2;
+    if (fieldIndex === 3) base = v * mult3;
+
+    let v1 = base / mult1;
+    let v2 = base / mult2;
+    let v3 = base / mult3;
+
+    const fmt = num => Number(num.toPrecision(10));
+
+    if (fieldIndex !== 1) document.getElementById('t-u-1').value = fmt(v1);
+    if (fieldIndex !== 2) document.getElementById('t-u-2').value = fmt(v2);
+    if (fieldIndex !== 3) document.getElementById('t-u-3').value = fmt(v3);
   },
 
   calcBattery() {
