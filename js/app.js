@@ -1170,16 +1170,14 @@ const UI = {
     const comp = state.components.find(c => c.id === componentId);
     if (!comp) return;
     document.getElementById('qrPrintName').textContent = comp.name;
-    const canvasContainer = document.getElementById('qrCodeCanvas');
-    canvasContainer.innerHTML = ''; // clear previous
-    if (typeof QRCode !== 'undefined') {
-      new QRCode(canvasContainer, {
-        text: comp.id,
-        width: 128,
-        height: 128
+    if (typeof JsBarcode !== 'undefined') {
+      JsBarcode('#barcodeCanvas', comp.id, {
+        format: 'CODE128',
+        lineColor: '#000',
+        width: 2,
+        height: 60,
+        displayValue: true
       });
-    } else {
-      canvasContainer.textContent = 'QR Library not loaded';
     }
     UI.showModal('qrPrintModal');
   },
@@ -1915,6 +1913,7 @@ function init() {
 // START APP
 document.addEventListener('DOMContentLoaded', init);
 window.UI = UI;
+
 
 
 

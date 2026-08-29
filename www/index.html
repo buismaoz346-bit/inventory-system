@@ -13,8 +13,8 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   
-  <!-- QR Code & Scanner Libraries -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <!-- Barcode & Scanner Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
 
   <!-- Chart.js -->
@@ -295,7 +295,7 @@
           <input type="text" id="globalSearch" placeholder="Search components..." aria-label="Search components">
         </div>
         <div class="header-actions">
-          <button class="btn btn-secondary btn-sm" id="scanQrBtn"><i data-lucide="scan"></i><span class="hide-mobile">Scan QR</span></button>
+          <button class="btn btn-secondary btn-sm" id="scanQrBtn"><i data-lucide="scan"></i><span class="hide-mobile">Scan Barcode</span></button>
           <button class="btn btn-primary btn-add" id="addComponentBtn"><i data-lucide="plus"></i><span>Add Component</span></button>
           <button class="btn-icon" id="themeToggle" aria-label="Toggle theme"><i data-lucide="moon" id="themeIcon"></i></button>
           <button class="btn-icon user-btn" id="logoutBtn" aria-label="Logout" title="Logout">
@@ -420,12 +420,12 @@
               <button class="btn-icon modal-close-btn" data-close="qrPrintModal"><i data-lucide="x"></i></button>
             </div>
             <div class="modal-body">
-              <div id="qrPrintArea" style="padding: 16px; background: white; margin-bottom: 16px; border: 1px solid #ccc; border-radius: 8px;">
+              <div id="qrPrintArea" style="padding: 16px; background: white; margin-bottom: 16px; border: 1px solid #ccc; border-radius: 8px; text-align: center;">
                 <h3 id="qrPrintName" style="color: black; margin-bottom: 8px; font-size: 14px; font-weight: bold;"></h3>
-                <div id="qrCodeCanvas" style="display: flex; justify-content: center; margin-bottom: 8px;"></div>
+                <svg id="barcodeCanvas" style="max-width: 100%; height: auto; margin-bottom: 8px;"></svg>
                 <p style="font-size: 10px; color: #666;">ElectroParts IMS</p>
               </div>
-              <button class="btn btn-primary btn-full" id="printQrBtn"><i data-lucide="printer"></i> Print Label</button>
+              <button class="btn btn-primary btn-full" id="printQrBtn"><i data-lucide="printer"></i> Print Barcode</button>
             </div>
           </div>
         </div>
@@ -434,7 +434,7 @@
         <div class="modal-overlay" id="qrScannerModal">
           <div class="modal modal-md">
             <div class="modal-header">
-              <h2>Scan QR Code</h2>
+              <h2>Scan Barcode Code</h2>
               <button class="btn-icon modal-close-btn" data-close="qrScannerModal"><i data-lucide="x"></i></button>
             </div>
             <div class="modal-body" style="display:flex; flex-direction:column; align-items:center;">
@@ -453,3 +453,5 @@
   <script src="js/app.js"></script>
 </body>
 </html>
+
+
