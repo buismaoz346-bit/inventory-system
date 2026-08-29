@@ -341,8 +341,11 @@ const Auth = {
     UI.showToast(`Welcome back, ${user.name || user.email.split('@')[0]}! 👋`, 'success');
   },
 
-  logout() {
+  async logout() {
     if (typeof FIREBASE_ENABLED !== 'undefined' && FIREBASE_ENABLED) {
+      if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+        try { await Capacitor.Plugins.FirebaseAuthentication.signOut(); } catch(e) {}
+      }
       firebase.auth().signOut().then(() => {
         localStorage.removeItem(CONFIG.STORAGE.COMPONENTS);
         localStorage.removeItem(CONFIG.STORAGE.CATEGORIES);
