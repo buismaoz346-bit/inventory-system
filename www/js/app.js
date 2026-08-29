@@ -343,7 +343,14 @@ const Auth = {
 
   logout() {
     if (typeof FIREBASE_ENABLED !== 'undefined' && FIREBASE_ENABLED) {
-      firebase.auth().signOut();
+      firebase.auth().signOut().then(() => {
+        localStorage.removeItem(CONFIG.STORAGE.COMPONENTS);
+        localStorage.removeItem(CONFIG.STORAGE.CATEGORIES);
+        localStorage.removeItem(CONFIG.STORAGE.PROJECTS);
+        localStorage.removeItem(CONFIG.STORAGE.ACTIVITY);
+        localStorage.removeItem(CONFIG.STORAGE.INITIALIZED);
+        location.reload();
+      });
     } else {
       sessionStorage.removeItem(CONFIG.STORAGE.AUTH);
       Auth.showLoginScreen();
