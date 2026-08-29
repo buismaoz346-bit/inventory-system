@@ -716,7 +716,12 @@ const UI = {
             </span>
           </td>
           <td class="text-center">
-            <div style="display:flex; align-items:center; justify-content:center; gap: 4px;">`n                <button class="action-btn" data-action="quick-dec" data-id="${c.id}" style="width: 20px; height: 20px; padding: 0;"><i data-lucide="minus" style="width: 12px;"></i></button>`n                <span class="qty-badge ${qtyClass}" style="min-width: 30px;">${c.quantity}</span>`n                <button class="action-btn" data-action="quick-inc" data-id="${c.id}" style="width: 20px; height: 20px; padding: 0;"><i data-lucide="plus" style="width: 12px;"></i></button>`n              </div>`n              ${c.faultyQuantity ? `<br><span class="qty-badge qty-badge--warning" style="margin-top: 4px; font-size: 10px;">${c.faultyQuantity} faulty</span>` : '}
+            <div style="display:flex; align-items:center; justify-content:center; gap: 4px;">
+              <button class="action-btn" data-action="quick-dec" data-id="${c.id}" style="width: 20px; height: 20px; padding: 0;"><i data-lucide="minus" style="width: 12px;"></i></button>
+              <span class="qty-badge ${qtyClass}" style="min-width: 30px;">${c.quantity}</span>
+              <button class="action-btn" data-action="quick-inc" data-id="${c.id}" style="width: 20px; height: 20px; padding: 0;"><i data-lucide="plus" style="width: 12px;"></i></button>
+            </div>
+            ${c.faultyQuantity ? `<br><span class="qty-badge qty-badge--warning" style="margin-top: 4px; font-size: 10px;">${c.faultyQuantity} faulty</span>` : ''}
           </td>
           <td class="text-center" style="color:var(--color-text-muted)">${c.minStock}</td>
           <td>
