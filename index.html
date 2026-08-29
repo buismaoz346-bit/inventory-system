@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ElectroParts IMS — Electronic Components Inventory</title>
+  <meta name="description" content="Professional inventory management system for electronic components">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+  <!-- Firebase SDK (loaded only if needed) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+
+  <!-- Firebase Config (user fills in) -->
+  <script src="firebase-config.js"></script>
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ========== LOGIN / SIGNUP PAGE ========== -->
+  <div class="login-page" id="loginPage">
+    <div class="login-bg"></div>
+    <div class="login-container">
+      <div class="login-card">
+        <div class="login-header">
+          <div class="login-logo">
+            <div class="login-logo-icon"><i data-lucide="cpu"></i></div>
+            <h1>ElectroParts IMS</h1>
+            <p>Electronic Components Inventory Manager</p>
+          </div>
+        </div>
+        <div class="login-body">
+          <!-- Google Sign In -->
+          <button class="btn-google" id="googleSignInBtn" type="button">
+            <svg viewBox="0 0 24 24" width="20" height="20"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+            Continue with Google
+          </button>
+
+          <div class="login-divider"><span>or continue with email</span></div>
+
+          <!-- Email Auth Form -->
+          <form id="authForm" autocomplete="off">
+            <div class="form-group" id="authNameGroup" style="display:none">
+              <label for="authName">Full Name</label>
+              <input type="text" id="authName" placeholder="Your name">
+            </div>
+            <div class="form-group">
+              <label for="authEmail">Email Address</label>
+              <input type="email" id="authEmail" placeholder="you@example.com" required>
+            </div>
+            <div class="form-group">
+              <label for="authPassword">Password</label>
+              <input type="password" id="authPassword" placeholder="Min 6 characters" required minlength="6">
+            </div>
+            <p class="error-text" id="authError"></p>
+            <button type="submit" class="btn btn-primary btn-full" id="authSubmitBtn">Sign In</button>
+          </form>
+
+          <p class="auth-switch">
+            <span id="authSwitchText">Don't have an account?</span>
+            <a href="#" id="authToggle">Sign Up</a>
+          </p>
+        </div>
+      </div>
+      <p class="login-credit">© 2026 ElectroParts IMS · Free &amp; Open Source</p>
+    </div>
+  </div>
+
+  <!-- ========== OTP VERIFICATION MODAL ========== -->
+  <div class="modal-overlay" id="otpModal">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <div class="modal-icon modal-icon--auth"><i data-lucide="mail-check"></i></div>
+        <h2>Verify Your Email</h2>
+        <p class="modal-subtitle">Enter the 6-digit OTP sent to <strong id="otpEmailDisplay">your email</strong></p>
+      </div>
+      <div class="modal-body">
+        <div class="otp-inputs" id="otpInputs">
+          <input type="text" maxlength="1" class="otp-input" data-index="0" inputmode="numeric" autocomplete="one-time-code">
+          <input type="text" maxlength="1" class="otp-input" data-index="1" inputmode="numeric">
+          <input type="text" maxlength="1" class="otp-input" data-index="2" inputmode="numeric">
+          <input type="text" maxlength="1" class="otp-input" data-index="3" inputmode="numeric">
+          <input type="text" maxlength="1" class="otp-input" data-index="4" inputmode="numeric">
+          <input type="text" maxlength="1" class="otp-input" data-index="5" inputmode="numeric">
+        </div>
+        <p class="error-text" id="otpError"></p>
+        <button class="btn btn-primary btn-full" id="verifyOtpBtn">Verify OTP</button>
+        <p class="otp-resend">Didn't receive it? <a href="#" id="resendOtpBtn">Resend OTP</a></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== EMAIL VERIFICATION NOTICE ========== -->
+  <div class="modal-overlay" id="verifyEmailModal">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <div class="modal-icon modal-icon--auth"><i data-lucide="mail"></i></div>
+        <h2>Check Your Email</h2>
+        <p class="modal-subtitle">We've sent a verification link to <strong id="verifyEmailDisplay">your email</strong>. Click the link to activate your account.</p>
+      </div>
+      <div class="modal-body">
+        <button class="btn btn-primary btn-full" id="checkVerificationBtn">I've Verified — Continue</button>
+        <button class="btn btn-ghost btn-full" id="resendVerificationBtn" style="margin-top:8px">Resend Email</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== TOAST NOTIFICATIONS ========== -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- ========== ADD/EDIT COMPONENT MODAL ========== -->
+  <div class="modal-overlay" id="componentModal">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h2 id="componentModalTitle">Add New Component</h2>
+        <button class="btn-icon modal-close-btn" data-close="componentModal"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <form id="componentForm">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="compName">Component Name *</label>
+              <input type="text" id="compName" placeholder="e.g. Arduino Uno R3" required>
+            </div>
+            <div class="form-group">
+              <label for="compCategory">Category *</label>
+              <select id="compCategory" required><option value="">Select category</option></select>
+            </div>
+            <div class="form-group">
+              <label for="compQuantity">Quantity *</label>
+              <input type="number" id="compQuantity" min="0" placeholder="0" required>
+            </div>
+            <div class="form-group">
+              <label for="compMinStock">Minimum Stock</label>
+              <input type="number" id="compMinStock" min="0" placeholder="0" value="0">
+            </div>
+            <div class="form-group">
+              <label for="compLocation">Location / Drawer</label>
+              <input type="text" id="compLocation" placeholder="e.g. Shelf A-3">
+            </div>
+            <div class="form-group">
+              <label for="compPrice">Purchase Price (PKR)</label>
+              <input type="number" id="compPrice" min="0" step="1" placeholder="0">
+            </div>
+            <div class="form-group">
+              <label for="compSupplier">Supplier</label>
+              <input type="text" id="compSupplier" placeholder="e.g. Daraz, AliExpress">
+            </div>
+            <div class="form-group">
+              <label for="compTags">Tags (comma separated)</label>
+              <input type="text" id="compTags" placeholder="e.g. arduino, mcu, dev-board">
+            </div>
+            <div class="form-group form-group-full">
+              <label for="compDescription">Description</label>
+              <textarea id="compDescription" rows="3" placeholder="Component description..."></textarea>
+            </div>
+            <div class="form-group form-group-full">
+              <label for="compImageUrl">Image URL (optional)</label>
+              <input type="url" id="compImageUrl" placeholder="https://...">
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-ghost" data-close="componentModal">Cancel</button>
+            <button type="submit" class="btn btn-primary"><i data-lucide="save"></i> Save Component</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== DELETE CONFIRMATION MODAL ========== -->
+  <div class="modal-overlay" id="deleteModal">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <div class="modal-icon modal-icon--danger"><i data-lucide="alert-triangle"></i></div>
+        <h2>Delete Component</h2>
+        <p class="modal-subtitle">This action cannot be undone.</p>
+      </div>
+      <div class="modal-body">
+        <p class="delete-text">Are you sure you want to delete <strong id="deleteComponentName"></strong>?</p>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" data-close="deleteModal">Cancel</button>
+          <button class="btn btn-danger" id="confirmDeleteBtn"><i data-lucide="trash-2"></i> Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== APP LAYOUT (hidden until authenticated) ========== -->
+  <div class="app-layout" id="appLayout" style="display:none">
+
+    <!-- ===== SIDEBAR ===== -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <div class="logo-icon"><i data-lucide="cpu"></i></div>
+          <div class="logo-text">
+            <span class="logo-title">ElectroParts</span>
+            <span class="logo-sub">Inventory Manager</span>
+          </div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <span class="nav-label">MENU</span>
+        <a class="nav-link active" data-view="dashboard" href="#"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></a>
+        <a class="nav-link" data-view="inventory" href="#"><i data-lucide="package"></i><span>Inventory</span></a>
+        <a class="nav-link" data-view="categories" href="#"><i data-lucide="tags"></i><span>Categories</span></a>
+        <a class="nav-link" data-view="activity" href="#"><i data-lucide="history"></i><span>Activity Log</span></a>
+        <span class="nav-label" style="margin-top:16px">TOOLS</span>
+        <a class="nav-link" data-view="calculator" href="#"><i data-lucide="calculator"></i><span>Resistor Calculator</span></a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="sidebar-footer-content"><i data-lucide="info"></i><span>ElectroParts IMS v2.0</span></div>
+      </div>
+    </aside>
+
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- ===== MAIN WRAPPER ===== -->
+    <div class="main-wrapper">
+      <header class="header">
+        <div class="header-left">
+          <button class="btn-icon" id="menuToggle" aria-label="Toggle menu"><i data-lucide="menu"></i></button>
+        </div>
+        <div class="header-search">
+          <i data-lucide="search"></i>
+          <input type="text" id="globalSearch" placeholder="Search components..." aria-label="Search components">
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-primary btn-add" id="addComponentBtn"><i data-lucide="plus"></i><span>Add Component</span></button>
+          <button class="btn-icon" id="themeToggle" aria-label="Toggle theme"><i data-lucide="moon" id="themeIcon"></i></button>
+          <button class="btn-icon user-btn" id="logoutBtn" aria-label="Logout" title="Logout">
+            <i data-lucide="log-out"></i>
+          </button>
+        </div>
+      </header>
+
+      <main class="main-content">
+
+        <!-- DASHBOARD VIEW -->
+        <section class="view active" id="dashboardView">
+          <div class="view-top">
+            <h1 class="view-title">Dashboard</h1>
+            <p class="view-subtitle" id="dashboardGreeting">Overview of your electronic components inventory</p>
+          </div>
+          <div class="stats-grid" id="statsGrid"></div>
+          <div class="charts-grid">
+            <div class="card"><div class="card-header"><h3 class="card-title">Components by Category</h3></div><div class="chart-wrapper"><canvas id="categoryChart"></canvas></div></div>
+            <div class="card"><div class="card-header"><h3 class="card-title">Stock Levels vs Minimum</h3></div><div class="chart-wrapper"><canvas id="stockChart"></canvas></div></div>
+          </div>
+          <div class="dashboard-bottom-grid">
+            <div class="card"><div class="card-header"><h3 class="card-title"><i data-lucide="alert-triangle" class="title-icon title-icon--warning"></i>Low Stock Alerts</h3></div><div id="lowStockList" class="list-container"></div></div>
+            <div class="card"><div class="card-header"><h3 class="card-title"><i data-lucide="clock" class="title-icon"></i>Recent Activity</h3></div><div id="recentActivity" class="list-container"></div></div>
+          </div>
+        </section>
+
+        <!-- INVENTORY VIEW -->
+        <section class="view" id="inventoryView">
+          <div class="view-top"><h1 class="view-title">Inventory</h1></div>
+          <div class="toolbar">
+            <div class="toolbar-left">
+              <div class="input-icon input-icon--sm"><i data-lucide="search"></i><input type="text" id="inventorySearch" placeholder="Filter components..."></div>
+              <select id="categoryFilter" class="select"><option value="">All Categories</option></select>
+              <select id="sortSelect" class="select">
+                <option value="name-asc">Name (A→Z)</option><option value="name-desc">Name (Z→A)</option>
+                <option value="qty-asc">Qty (Low→High)</option><option value="qty-desc">Qty (High→Low)</option>
+                <option value="date-desc">Newest First</option><option value="date-asc">Oldest First</option>
+              </select>
+            </div>
+            <div class="toolbar-right">
+              <span class="results-count" id="resultsCount"></span>
+              <button class="btn btn-ghost btn-sm" id="exportBtn"><i data-lucide="download"></i><span>Export CSV</span></button>
+            </div>
+          </div>
+          <div class="card table-card">
+            <div class="table-responsive">
+              <table class="data-table" id="inventoryTable">
+                <thead><tr>
+                  <th>Component</th><th>Category</th><th class="text-center">Quantity</th>
+                  <th class="text-center">Min Stock</th><th>Location</th><th class="text-right">Price (PKR)</th><th class="text-center">Actions</th>
+                </tr></thead>
+                <tbody id="inventoryTableBody"></tbody>
+              </table>
+            </div>
+            <div id="emptyInventory" class="empty-state" style="display:none"><i data-lucide="package-open"></i><h3>No components found</h3><p>Try adjusting your filters or add a new component.</p></div>
+          </div>
+        </section>
+
+        <!-- CATEGORIES VIEW -->
+        <section class="view" id="categoriesView">
+          <div class="view-top"><h1 class="view-title">Categories</h1><p class="view-subtitle">Organize your components by type</p></div>
+          <div class="categories-grid" id="categoriesGrid"></div>
+        </section>
+
+        <!-- ACTIVITY LOG VIEW -->
+        <section class="view" id="activityView">
+          <div class="view-top"><h1 class="view-title">Activity Log</h1><p class="view-subtitle">Track all changes to your inventory</p></div>
+          <div class="card">
+            <div id="activityTimeline" class="activity-timeline"></div>
+            <div id="emptyActivity" class="empty-state" style="display:none"><i data-lucide="history"></i><h3>No activity yet</h3><p>Activity will appear here as you manage your inventory.</p></div>
+          </div>
+        </section>
+
+        <!-- RESISTOR CALCULATOR VIEW -->
+        <section class="view" id="calculatorView">
+          <div class="view-top">
+            <h1 class="view-title">Resistor Color Code Calculator</h1>
+            <p class="view-subtitle">Type color band names in CAPITAL LETTERS (e.g. BROWN, RED, ORANGE)</p>
+          </div>
+
+          <div class="calc-layout">
+            <!-- Visual Resistor -->
+            <div class="card calc-visual-card">
+              <div class="resistor-visual">
+                <div class="resistor-lead"></div>
+                <div class="resistor-body">
+                  <div class="resistor-band" id="bandVisual1" title="Band 1"></div>
+                  <div class="resistor-band" id="bandVisual2" title="Band 2"></div>
+                  <div class="resistor-band" id="bandVisual3" title="Multiplier"></div>
+                  <div class="resistor-band resistor-band--tolerance" id="bandVisual4" title="Tolerance"></div>
+                </div>
+                <div class="resistor-lead"></div>
+              </div>
+
+              <!-- Result -->
+              <div class="calc-result" id="calcResult">
+                <div class="calc-result-value" id="calcResultValue">—</div>
+                <div class="calc-result-tolerance" id="calcResultTolerance"></div>
+              </div>
+            </div>
+
+            <!-- Input Form -->
+            <div class="card calc-form-card">
+              <h3 class="card-title" style="margin-bottom:16px">Enter Band Colors</h3>
+              <div class="calc-inputs">
+                <div class="calc-input-group">
+                  <label>Band 1 — 1st Digit</label>
+                  <input type="text" id="calcBand1" class="calc-input" placeholder="e.g. BROWN" autocomplete="off">
+                  <span class="calc-hint" id="calcHint1"></span>
+                </div>
+                <div class="calc-input-group">
+                  <label>Band 2 — 2nd Digit</label>
+                  <input type="text" id="calcBand2" class="calc-input" placeholder="e.g. BLACK" autocomplete="off">
+                  <span class="calc-hint" id="calcHint2"></span>
+                </div>
+                <div class="calc-input-group">
+                  <label>Band 3 — Multiplier</label>
+                  <input type="text" id="calcBand3" class="calc-input" placeholder="e.g. RED" autocomplete="off">
+                  <span class="calc-hint" id="calcHint3"></span>
+                </div>
+                <div class="calc-input-group">
+                  <label>Band 4 — Tolerance</label>
+                  <input type="text" id="calcBand4" class="calc-input" placeholder="e.g. GOLD" autocomplete="off">
+                  <span class="calc-hint" id="calcHint4"></span>
+                </div>
+              </div>
+              <button class="btn btn-primary btn-full" id="calcBtn" style="margin-top:16px">
+                <i data-lucide="calculator"></i> Calculate Resistance
+              </button>
+              <button class="btn btn-ghost btn-full" id="calcClearBtn" style="margin-top:8px">Clear</button>
+
+              <!-- Color Reference Table -->
+              <div class="calc-ref">
+                <h4>Color Reference</h4>
+                <div class="calc-ref-grid">
+                  <div class="calc-ref-item"><span class="calc-ref-swatch" style="background:#000"></span>BLACK = 0</div>
+                  <div class="calc-ref-item"><span class="calc-ref-swatch" style="background:#8B4513"></span>BROWN = 1</div>
+                  <div class="calc-ref-item"><span class="calc-ref-swatch" style="background:#FF0000"></span>RED = 2</div>
+                  <div class="calc-ref-item"><span class="calc-ref-swatch" style="background:#FF8C00"></span>ORANGE = 3</div>
+                  <div class="calc-ref-item"><span class="calc-ref-swatch" style="background:#FFD700"></span>YELLOW = 4</div>
+                  <div class="calc-ref-item"><span class="calc-ref-swatch" style="background:#228B22"></span>GREEN = 5</div>
+                  <div class="calc-ref-item"><span class="calc-ref-swatch" style="background:#0000FF"></span>BLUE = 6</div>
+                  <div class="calc-ref-item"><span class="calc-ref-swatch" style="background:#8B00FF"></span>VIOLET = 7</div>
+                  <div class="calc-ref-item"><span class="calc-ref-swatch" style="background:#808080"></span>GREY = 8</div>
+                  <div class="calc-ref-item"><span class="calc-ref-swatch" style="background:#FFF;border:1px solid #ccc"></span>WHITE = 9</div>
+                  <div class="calc-ref-item"><span class="calc-ref-swatch" style="background:#FFD700"></span>GOLD = ×0.1 / ±5%</div>
+                  <div class="calc-ref-item"><span class="calc-ref-swatch" style="background:#C0C0C0"></span>SILVER = ×0.01 / ±10%</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
