@@ -9,8 +9,13 @@
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Icons & Fonts -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- QR Code & Scanner Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
 
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -158,6 +163,10 @@
               <input type="text" id="compLocation" placeholder="e.g. Shelf A-3">
             </div>
             <div class="form-group">
+              <label for="compDatasheet">Datasheet URL (PDF/Link)</label>
+              <input type="url" id="compDatasheet" placeholder="e.g. https://example.com/datasheet.pdf">
+            </div>
+            <div class="form-group">
               <label for="compPrice">Purchase Price (PKR)</label>
               <input type="number" id="compPrice" min="0" step="1" placeholder="0">
             </div>
@@ -183,6 +192,40 @@
             <button type="submit" class="btn btn-primary"><i data-lucide="save"></i> Save Component</button>
           </div>
         </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== PROJECT MODAL ========== -->
+  <div class="modal-overlay" id="projectModal">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h2 id="projectModalTitle">Create Project (BOM)</h2>
+        <button class="btn-icon modal-close-btn" data-close="projectModal"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="projName">Project Name *</label>
+          <input type="text" id="projName" placeholder="e.g. Line Follower Robot" required>
+        </div>
+        
+        <div class="bom-builder" style="margin-top:20px; border-top: 1px solid var(--border-color); padding-top:16px;">
+          <h3>Bill of Materials</h3>
+          <div style="display:flex; gap:8px; margin-bottom:12px;">
+            <select id="projAddComponent" style="flex:1;"><option value="">Select component...</option></select>
+            <input type="number" id="projAddQty" min="1" value="1" style="width:80px;" placeholder="Qty">
+            <button class="btn btn-secondary" onclick="UI.addProjectItem()"><i data-lucide="plus"></i> Add</button>
+          </div>
+          <table class="data-table" style="margin-top:8px;">
+            <thead><tr><th>Component</th><th>Required Qty</th><th>In Stock</th><th>Action</th></tr></thead>
+            <tbody id="projItemsList"></tbody>
+          </table>
+        </div>
+
+        <div class="modal-footer" style="margin-top: 24px;">
+          <button type="button" class="btn btn-ghost" data-close="projectModal">Cancel</button>
+          <button type="button" class="btn btn-primary" onclick="UI.saveProject()"><i data-lucide="save"></i> Save Project</button>
+        </div>
       </div>
     </div>
   </div>
@@ -223,6 +266,7 @@
         <span class="nav-label">MENU</span>
         <a class="nav-link active" data-view="dashboard" href="#"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></a>
         <a class="nav-link" data-view="inventory" href="#"><i data-lucide="package"></i><span>Inventory</span></a>
+        <a class="nav-link" data-view="projects" href="#"><i data-lucide="briefcase"></i><span>Projects (BOM)</span></a>
         <a class="nav-link" data-view="categories" href="#"><i data-lucide="tags"></i><span>Categories</span></a>
         <a class="nav-link" data-view="activity" href="#"><i data-lucide="history"></i><span>Activity Log</span></a>
         <span class="nav-label" style="margin-top:16px">TOOLS</span>
@@ -246,6 +290,7 @@
           <input type="text" id="globalSearch" placeholder="Search components..." aria-label="Search components">
         </div>
         <div class="header-actions">
+          <button class="btn btn-secondary btn-sm" id="scanQrBtn"><i data-lucide="scan"></i><span class="hide-mobile">Scan QR</span></button>
           <button class="btn btn-primary btn-add" id="addComponentBtn"><i data-lucide="plus"></i><span>Add Component</span></button>
           <button class="btn-icon" id="themeToggle" aria-label="Toggle theme"><i data-lucide="moon" id="themeIcon"></i></button>
           <button class="btn-icon user-btn" id="logoutBtn" aria-label="Logout" title="Logout">
@@ -288,6 +333,8 @@
             </div>
             <div class="toolbar-right">
               <span class="results-count" id="resultsCount"></span>
+              <input type="file" id="importCsv" accept=".csv" style="display:none;">
+              <button class="btn btn-ghost btn-sm" id="importBtn"><i data-lucide="upload"></i><span>Import CSV</span></button>
               <button class="btn btn-ghost btn-sm" id="exportBtn"><i data-lucide="download"></i><span>Export CSV</span></button>
             </div>
           </div>
@@ -302,6 +349,17 @@
               </table>
             </div>
             <div id="emptyInventory" class="empty-state" style="display:none"><i data-lucide="package-open"></i><h3>No components found</h3><p>Try adjusting your filters or add a new component.</p></div>
+          </div>
+        </section>
+
+        <!-- PROJECTS VIEW -->
+        <section class="view" id="projectsView">
+          <div class="view-top">
+            <h1 class="view-title">Projects (BOM)</h1>
+            <button class="btn btn-primary btn-sm" onclick="UI.showProjectModal()"><i data-lucide="plus"></i> New Project</button>
+          </div>
+          <div class="grid-layout" id="projectsGrid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; margin-top: 16px;">
+            <!-- Projects will render here -->
           </div>
         </section>
 
@@ -399,6 +457,38 @@
             </div>
           </div>
         </section>
+
+        <!-- ========== QR PRINT MODAL ========== -->
+        <div class="modal-overlay" id="qrPrintModal">
+          <div class="modal modal-sm" style="text-align: center;">
+            <div class="modal-header">
+              <h2>Print Component Label</h2>
+              <button class="btn-icon modal-close-btn" data-close="qrPrintModal"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body">
+              <div id="qrPrintArea" style="padding: 16px; background: white; margin-bottom: 16px; border: 1px solid #ccc; border-radius: 8px;">
+                <h3 id="qrPrintName" style="color: black; margin-bottom: 8px; font-size: 14px; font-weight: bold;"></h3>
+                <div id="qrCodeCanvas" style="display: flex; justify-content: center; margin-bottom: 8px;"></div>
+                <p style="font-size: 10px; color: #666;">ElectroParts IMS</p>
+              </div>
+              <button class="btn btn-primary btn-full" id="printQrBtn"><i data-lucide="printer"></i> Print Label</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ========== QR SCANNER MODAL ========== -->
+        <div class="modal-overlay" id="qrScannerModal">
+          <div class="modal modal-md">
+            <div class="modal-header">
+              <h2>Scan QR Code</h2>
+              <button class="btn-icon modal-close-btn" data-close="qrScannerModal"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body" style="display:flex; flex-direction:column; align-items:center;">
+              <div id="qr-reader" style="width: 100%; max-width: 400px; margin-bottom: 16px;"></div>
+              <button class="btn btn-ghost btn-full" data-close="qrScannerModal">Cancel</button>
+            </div>
+          </div>
+        </div>
 
       </main>
     </div>

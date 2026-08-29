@@ -11,6 +11,7 @@ const CONFIG = {
     COMPONENTS: 'ep_components',
     CATEGORIES: 'ep_categories',
     ACTIVITY: 'ep_activity',
+    PROJECTS: 'ep_projects',
     THEME: 'ep_theme',
     AUTH: 'ep_auth',
     INITIALIZED: 'ep_initialized'
@@ -65,6 +66,7 @@ const state = {
   components: [],
   categories: [],
   activity: [],
+  projects: [],
   isAuthenticated: false,
   currentUser: null,
   currentView: 'dashboard',
@@ -99,12 +101,14 @@ const Storage = {
         state.components = data.components || [];
         state.categories = data.categories || [...DEFAULT_CATEGORIES];
         state.activity = data.activity || [];
+        state.projects = data.projects || [];
         UI.switchView(state.currentView);
       });
     } else {
       state.components = Storage.get(CONFIG.STORAGE.COMPONENTS) || [];
       state.categories = Storage.get(CONFIG.STORAGE.CATEGORIES) || [];
       state.activity = Storage.get(CONFIG.STORAGE.ACTIVITY) || [];
+      state.projects = Storage.get(CONFIG.STORAGE.PROJECTS) || [];
     }
   },
   saveComponents() { 
@@ -124,6 +128,12 @@ const Storage = {
       firebase.database().ref('users/' + firebase.auth().currentUser.uid + '/activity').set(state.activity);
     }
     Storage.set(CONFIG.STORAGE.ACTIVITY, state.activity); 
+  },
+  saveProjects() {
+    if (typeof FIREBASE_ENABLED !== 'undefined' && FIREBASE_ENABLED && firebase.auth().currentUser) {
+      firebase.database().ref('users/' + firebase.auth().currentUser.uid + '/projects').set(state.projects);
+    }
+    Storage.set(CONFIG.STORAGE.PROJECTS, state.projects);
   }
 };
 
@@ -468,6 +478,7 @@ const UI = {
       case 'dashboard': UI.renderDashboard(); break;
       case 'inventory': UI.renderInventory(); break;
       case 'categories': UI.renderCategories(); break;
+      case 'projects': UI.renderProjects(); break;
       case 'activity': UI.renderActivity(); break;
       case 'calculator': ResistorCalc.init(); break;
     }
@@ -588,7 +599,10 @@ const UI = {
                 ${c.imageUrl ? `<img src="${escapeHtml(c.imageUrl)}" alt="${escapeHtml(c.name)}">` : `<i data-lucide="${Data.getCategoryIcon(c.category)}"></i>`}
               </div>
               <div>
-                <div class="component-name">${escapeHtml(c.name)}</div>
+                <div class="component-name">
+                  ${escapeHtml(c.name)}
+                  ${c.datasheetUrl ? `<a href="${escapeHtml(c.datasheetUrl)}" target="_blank" title="View Datasheet" style="margin-left:8px; color:var(--color-primary);"><i data-lucide="file-text" style="width:14px;height:14px;"></i></a>` : ''}
+                </div>
                 ${c.description ? `<div class="component-desc">${escapeHtml(c.description)}</div>` : ''}
                 ${c.attributes && Object.keys(c.attributes).length > 0 ? 
                   `<div class="component-specs" style="font-size: 11px; margin-top: 4px; color: var(--color-primary);">
@@ -615,6 +629,9 @@ const UI = {
           </td>
           <td class="text-center">
             <div class="action-btns">
+              <button class="action-btn action-btn--print" data-action="print" data-id="${c.id}" title="Print Label">
+                <i data-lucide="printer"></i>
+              </button>
               <button class="action-btn action-btn--edit" data-action="edit" data-id="${c.id}" title="Edit">
                 <i data-lucide="pencil"></i>
               </button>
@@ -708,6 +725,154 @@ const UI = {
     refreshIcons();
   },
 
+  renderProjects() {
+    const grid = document.getElementById('projectsGrid');
+    if (!grid) return;
+    
+    if (!state.projects || state.projects.length === 0) {
+      grid.innerHTML = `<div class="empty-state" style="grid-column: 1/-1;"><i data-lucide="briefcase" class="empty-icon"></i><p>No projects yet.</p><button class="btn btn-primary" onclick="UI.showProjectModal()">Create Project</button></div>`;
+      refreshIcons();
+      return;
+    }
+    
+    grid.innerHTML = state.projects.map(p => {
+      let canConsume = true;
+      const itemsHtml = p.items.map(item => {
+        const comp = state.components.find(c => c.id === item.componentId);
+        if (!comp) return '';
+        const hasEnough = comp.quantity >= item.requiredQty;
+        if (!hasEnough) canConsume = false;
+        return `
+          <div style="display:flex; justify-content:space-between; font-size:12px; padding:4px 0; border-bottom:1px solid var(--border-color);">
+            <span>${escapeHtml(comp.name)}</span>
+            <span style="color: ${hasEnough ? 'var(--color-success)' : 'var(--color-danger)'}">${comp.quantity} / ${item.requiredQty}</span>
+          </div>
+        `;
+      }).join('');
+      
+      return `
+        <div class="card" style="display:flex; flex-direction:column;">
+          <div class="card-header" style="display:flex; justify-content:space-between;">
+            <h3 class="card-title">${escapeHtml(p.name)}</h3>
+            <button class="btn-icon btn-icon--danger" onclick="UI.deleteProject('${p.id}')"><i data-lucide="trash-2"></i></button>
+          </div>
+          <div style="padding:16px; flex:1;">
+            <div style="margin-bottom:8px; font-weight:600; font-size:12px;">Requirements:</div>
+            ${itemsHtml || '<p style="font-size:12px; color:var(--text-secondary);">No components added.</p>'}
+          </div>
+          <div style="padding:16px; border-top:1px solid var(--border-color);">
+            <button class="btn btn-primary btn-full" ${!canConsume || p.items.length===0 ? 'disabled' : ''} onclick="UI.consumeProject('${p.id}')">
+              <i data-lucide="check-circle"></i> Consume Parts
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+    refreshIcons();
+  },
+
+  deleteProject(id) {
+    if(confirm('Delete this project?')) {
+      state.projects = state.projects.filter(p => p.id !== id);
+      Storage.saveProjects();
+      UI.renderProjects();
+      UI.showToast('Project deleted');
+    }
+  },
+
+  consumeProject(id) {
+    const p = state.projects.find(proj => proj.id === id);
+    if (!p) return;
+    if(confirm(`Deduct components for ${p.name}? This will permanently remove stock.`)) {
+      p.items.forEach(item => {
+        const comp = state.components.find(c => c.id === item.componentId);
+        if (comp) {
+          comp.quantity -= item.requiredQty;
+          comp.lastUpdated = new Date().toISOString().split('T')[0];
+        }
+      });
+      Storage.saveComponents();
+      UI.renderProjects();
+      UI.showToast('Stock consumed successfully', 'success');
+    }
+  },
+
+  tempProjectItems: [],
+
+  showProjectModal() {
+    UI.tempProjectItems = [];
+    document.getElementById('projName').value = '';
+    
+    // Populate select
+    const select = document.getElementById('projAddComponent');
+    select.innerHTML = '<option value="">Select component...</option>' + 
+      state.components.map(c => `<option value="${c.id}">${escapeHtml(c.name)} (${c.quantity} in stock)</option>`).join('');
+      
+    UI.renderTempProjectItems();
+    UI.showModal('projectModal');
+  },
+
+  addProjectItem() {
+    const compId = document.getElementById('projAddComponent').value;
+    const qty = parseInt(document.getElementById('projAddQty').value);
+    if (!compId || qty < 1) return;
+    
+    const existing = UI.tempProjectItems.find(i => i.componentId === compId);
+    if (existing) {
+      existing.requiredQty += qty;
+    } else {
+      UI.tempProjectItems.push({ componentId: compId, requiredQty: qty });
+    }
+    
+    document.getElementById('projAddComponent').value = '';
+    document.getElementById('projAddQty').value = 1;
+    UI.renderTempProjectItems();
+  },
+
+  removeProjectItem(index) {
+    UI.tempProjectItems.splice(index, 1);
+    UI.renderTempProjectItems();
+  },
+
+  renderTempProjectItems() {
+    const tbody = document.getElementById('projItemsList');
+    if (!tbody) return;
+    tbody.innerHTML = UI.tempProjectItems.map((item, idx) => {
+      const comp = state.components.find(c => c.id === item.componentId);
+      if (!comp) return '';
+      return `
+        <tr>
+          <td>${escapeHtml(comp.name)}</td>
+          <td>${item.requiredQty}</td>
+          <td>${comp.quantity}</td>
+          <td><button class="btn-icon btn-icon--danger" onclick="UI.removeProjectItem(${idx})"><i data-lucide="x"></i></button></td>
+        </tr>
+      `;
+    }).join('');
+    refreshIcons();
+  },
+
+  saveProject() {
+    const name = document.getElementById('projName').value.trim();
+    if (!name) {
+      UI.showToast('Please enter a project name', 'error');
+      return;
+    }
+    
+    const proj = {
+      id: 'proj-' + Date.now(),
+      name: name,
+      items: [...UI.tempProjectItems],
+      createdAt: new Date().toISOString()
+    };
+    
+    state.projects.push(proj);
+    Storage.saveProjects();
+    UI.hideModal('projectModal');
+    UI.renderProjects();
+    UI.showToast('Project created', 'success');
+  },
+
   // ---- MODALS ----
   showModal(id) {
     const modal = document.getElementById(id);
@@ -748,6 +913,7 @@ const UI = {
       document.getElementById('compMinStock').value = comp.minStock;
       document.getElementById('compLocation').value = comp.location || '';
       document.getElementById('compPrice').value = comp.purchasePrice || '';
+      document.getElementById('compDatasheet').value = comp.datasheetUrl || '';
       document.getElementById('compSupplier').value = comp.supplier || '';
       document.getElementById('compTags').value = (comp.tags || []).join(', ');
       document.getElementById('compDescription').value = comp.description || '';
@@ -873,6 +1039,54 @@ const UI = {
     if (!comp) return;
     document.getElementById('deleteComponentName').textContent = comp.name;
     UI.showModal('deleteModal');
+  },
+
+  showQrPrintModal(componentId) {
+    const comp = state.components.find(c => c.id === componentId);
+    if (!comp) return;
+    document.getElementById('qrPrintName').textContent = comp.name;
+    const canvasContainer = document.getElementById('qrCodeCanvas');
+    canvasContainer.innerHTML = ''; // clear previous
+    if (typeof QRCode !== 'undefined') {
+      new QRCode(canvasContainer, {
+        text: comp.id,
+        width: 128,
+        height: 128
+      });
+    } else {
+      canvasContainer.textContent = 'QR Library not loaded';
+    }
+    UI.showModal('qrPrintModal');
+  },
+
+  showQrScannerModal() {
+    UI.showModal('qrScannerModal');
+    if (typeof Html5QrcodeScanner !== 'undefined') {
+      const html5QrcodeScanner = new Html5QrcodeScanner(
+        "qr-reader", { fps: 10, qrbox: 250 }, false);
+        
+      html5QrcodeScanner.render((decodedText, decodedResult) => {
+        // Stop scanning when found
+        html5QrcodeScanner.clear();
+        UI.hideModal('qrScannerModal');
+        
+        // Find component
+        const comp = state.components.find(c => c.id === decodedText);
+        if (comp) {
+          UI.showToast(`Found ${comp.name}`, 'success');
+          UI.showComponentModal(comp.id);
+        } else {
+          UI.showToast('Component not found in inventory', 'error');
+        }
+      }, (errorMessage) => {
+        // parse error, ignore
+      });
+
+      // Cleanup if modal closes manually
+      document.querySelector('[data-close="qrScannerModal"]').addEventListener('click', () => {
+        try { html5QrcodeScanner.clear(); } catch(e){}
+      }, { once: true });
+    }
   },
 
   // ---- TOASTS ----
@@ -1240,6 +1454,7 @@ const Handlers = {
         tags: document.getElementById('compTags').value.split(',').map(t => t.trim()).filter(Boolean),
         description: document.getElementById('compDescription').value.trim(),
         imageUrl: document.getElementById('compImageUrl').value.trim(),
+        datasheetUrl: document.getElementById('compDatasheet').value.trim(),
         attributes: attributes
       };
 
@@ -1275,8 +1490,38 @@ const Handlers = {
     document.querySelector('.main-content')?.addEventListener('click', (e) => {
       const editBtn = e.target.closest('[data-action="edit"]');
       const deleteBtn = e.target.closest('[data-action="delete"]');
+      const printBtn = e.target.closest('[data-action="print"]');
       if (editBtn) UI.showComponentModal(editBtn.dataset.id);
       if (deleteBtn) UI.showDeleteModal(deleteBtn.dataset.id);
+      if (printBtn) UI.showQrPrintModal(printBtn.dataset.id);
+    });
+
+    document.getElementById('scanQrBtn')?.addEventListener('click', () => {
+      UI.showQrScannerModal();
+    });
+
+    document.getElementById('printQrBtn')?.addEventListener('click', () => {
+      const printContent = document.getElementById('qrPrintArea').innerHTML;
+      const printWindow = window.open('', '_blank', 'width=400,height=400');
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Print Label</title>
+            <style>
+              body { font-family: sans-serif; text-align: center; margin: 0; padding: 20px; }
+              h3 { margin: 0 0 10px 0; font-size: 16px; }
+              img { display: block; margin: 0 auto; max-width: 100%; }
+            </style>
+          </head>
+          <body>${printContent}</body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+      }, 250);
     });
 
     // --- Navigation ---
@@ -1337,6 +1582,11 @@ const Handlers = {
     });
 
     document.getElementById('exportBtn')?.addEventListener('click', exportCSV);
+    
+    document.getElementById('importBtn')?.addEventListener('click', () => {
+      document.getElementById('importCsv')?.click();
+    });
+    document.getElementById('importCsv')?.addEventListener('change', importCSV);
 
     // --- Modals ---
     document.querySelectorAll('[data-close]').forEach(btn => {
@@ -1418,6 +1668,72 @@ function exportCSV() {
   UI.showToast(`Exported ${components.length} components to CSV`, 'success');
 }
 
+function importCSV(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = (event) => {
+    const text = event.target.result;
+    const lines = text.split('\n').filter(line => line.trim());
+    if (lines.length < 2) {
+      UI.showToast('CSV is empty or invalid', 'error');
+      return;
+    }
+    
+    let imported = 0;
+    // Skip header line
+    for (let i = 1; i < lines.length; i++) {
+      // Basic CSV parser (handles simple quoted fields)
+      const row = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(s => s.replace(/^"|"$/g, '').trim());
+      if (row.length < 3) continue; // Need at least Name, Category, Qty
+      
+      const name = row[0];
+      const categoryName = row[1];
+      let catId = state.categories.find(c => c.name.toLowerCase() === categoryName.toLowerCase())?.id;
+      if (!catId) catId = 'cat-7'; // Default to Passives if not found
+      
+      const quantity = parseInt(row[2]) || 0;
+      const minStock = parseInt(row[3]) || 0;
+      const location = row[4] || '';
+      const price = parseFloat(row[5]) || 0;
+      const supplier = row[6] || '';
+      const desc = row[7] || '';
+      const tags = (row[8] || '').split(';').map(t => t.trim()).filter(Boolean);
+      
+      const comp = {
+        id: 'comp-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+        name: name,
+        category: catId,
+        quantity: quantity,
+        minStock: minStock,
+        location: location,
+        purchasePrice: price,
+        supplier: supplier,
+        description: desc,
+        tags: tags,
+        dateAdded: new Date().toISOString().split('T')[0],
+        lastUpdated: new Date().toISOString().split('T')[0]
+      };
+      
+      state.components.push(comp);
+      imported++;
+    }
+    
+    if (imported > 0) {
+      Storage.saveComponents();
+      Data.logActivity('imported', imported + ' components via CSV', imported);
+      UI.renderInventory();
+      UI.updateDashboard();
+      UI.showToast(`Successfully imported ${imported} components!`, 'success');
+    }
+    
+    // Reset file input
+    e.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
 // ============================================================
 // INITIALIZATION
 // ============================================================
@@ -1438,4 +1754,6 @@ function init() {
   console.log('⚡ ElectroParts IMS initialized');
 }
 
+// START APP
 document.addEventListener('DOMContentLoaded', init);
+window.UI = UI;
