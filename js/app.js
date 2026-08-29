@@ -1429,10 +1429,10 @@ function init() {
     if (icon) icon.setAttribute('data-lucide', savedTheme === 'dark' ? 'sun' : 'moon');
   }
 
+  Auth.init();
   Data.initSampleData();
   Storage.loadAll();
   Handlers.init();
-  Auth.init();
   refreshIcons();
 
   console.log('⚡ ElectroParts IMS initialized');
