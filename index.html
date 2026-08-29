@@ -140,6 +140,11 @@
               <label for="compCategory">Category *</label>
               <select id="compCategory" required><option value="">Select category</option></select>
             </div>
+            
+            <!-- Dynamic Fields injected here based on Category -->
+            <div id="dynamicFields" class="form-group-full" style="display: none; background: var(--color-surface-hover); padding: 12px; border-radius: 8px; margin-bottom: 16px;">
+            </div>
+
             <div class="form-group">
               <label for="compQuantity">Quantity *</label>
               <input type="number" id="compQuantity" min="0" placeholder="0" required>

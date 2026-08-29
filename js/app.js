@@ -590,6 +590,10 @@ const UI = {
               <div>
                 <div class="component-name">${escapeHtml(c.name)}</div>
                 ${c.description ? `<div class="component-desc">${escapeHtml(c.description)}</div>` : ''}
+                ${c.attributes && Object.keys(c.attributes).length > 0 ? 
+                  `<div class="component-specs" style="font-size: 11px; margin-top: 4px; color: var(--color-primary);">
+                    ${Object.entries(c.attributes).map(([k,v]) => `<strong>${k}:</strong> ${escapeHtml(v)}`).join(' | ')}
+                   </div>` : ''}
               </div>
             </div>
           </td>
@@ -731,6 +735,10 @@ const UI = {
     catSelect.innerHTML = '<option value="">Select category</option>' +
       state.categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
 
+    const dynamicFields = document.getElementById('dynamicFields');
+    dynamicFields.style.display = 'none';
+    dynamicFields.innerHTML = '';
+
     if (isEdit) {
       const comp = state.components.find(c => c.id === componentId);
       if (!comp) return;
@@ -744,12 +752,119 @@ const UI = {
       document.getElementById('compTags').value = (comp.tags || []).join(', ');
       document.getElementById('compDescription').value = comp.description || '';
       document.getElementById('compImageUrl').value = comp.imageUrl || '';
+      
+      UI.renderDynamicFields(comp.category, comp.attributes || {});
     } else {
       document.getElementById('componentForm').reset();
       document.getElementById('compMinStock').value = '0';
     }
 
     UI.showModal('componentModal');
+  },
+
+  renderDynamicFields(categoryId, existingData = {}) {
+    const container = document.getElementById('dynamicFields');
+    if (!categoryId) {
+      container.style.display = 'none';
+      container.innerHTML = '';
+      return;
+    }
+    
+    const catName = Data.getCategoryName(categoryId).toLowerCase();
+    let html = '';
+
+    if (catName.includes('resistor')) {
+      html = `
+        <h4 style="margin-bottom:8px; font-size:12px; color:var(--color-text-muted); text-transform:uppercase;">Resistor Specifications</h4>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label style="font-size:11px;">Resistance Value (e.g. 10kΩ) OR Colors (e.g. RED RED BROWN GOLD)</label>
+            <input type="text" id="attr_resistance" value="${escapeHtml(existingData.resistance || '')}" placeholder="Value or Color Bands" class="input">
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label style="font-size:11px;">Wattage Rating</label>
+            <input type="text" id="attr_wattage" value="${escapeHtml(existingData.wattage || '')}" placeholder="e.g. 1/4W, 1W" class="input">
+          </div>
+        </div>
+      `;
+    } else if (catName.includes('capacitor')) {
+      html = `
+        <h4 style="margin-bottom:8px; font-size:12px; color:var(--color-text-muted); text-transform:uppercase;">Capacitor Specifications</h4>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label style="font-size:11px;">Capacitance</label>
+            <input type="text" id="attr_capacitance" value="${escapeHtml(existingData.capacitance || '')}" placeholder="e.g. 100µF, 104" class="input">
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label style="font-size:11px;">Voltage Rating</label>
+            <input type="text" id="attr_voltage" value="${escapeHtml(existingData.voltage || '')}" placeholder="e.g. 16V, 50V" class="input">
+          </div>
+        </div>
+      `;
+    } else if (catName.includes('led') || catName.includes('diode')) {
+      html = `
+        <h4 style="margin-bottom:8px; font-size:12px; color:var(--color-text-muted); text-transform:uppercase;">Diode/LED Specifications</h4>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label style="font-size:11px;">Forward Voltage / Color</label>
+            <input type="text" id="attr_voltage" value="${escapeHtml(existingData.voltage || '')}" placeholder="e.g. 2.2V / Red" class="input">
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label style="font-size:11px;">Max Current</label>
+            <input type="text" id="attr_current" value="${escapeHtml(existingData.current || '')}" placeholder="e.g. 20mA, 1A" class="input">
+          </div>
+        </div>
+      `;
+    } else {
+      html = `
+        <h4 style="margin-bottom:8px; font-size:12px; color:var(--color-text-muted); text-transform:uppercase;">General Specifications</h4>
+        <div class="form-group" style="margin-bottom:0;">
+          <label style="font-size:11px;">Rating / Package Type</label>
+          <input type="text" id="attr_rating" value="${escapeHtml(existingData.rating || '')}" placeholder="e.g. 5V, DIP-8, SMD-0805" class="input">
+        </div>
+      `;
+    }
+
+    if (html) {
+      container.innerHTML = html;
+      container.style.display = 'block';
+    } else {
+      container.innerHTML = '';
+      container.style.display = 'none';
+    }
+    
+    // Auto-calculate logic if Resistor colors are typed
+    const resInput = document.getElementById('attr_resistance');
+    if (resInput) {
+      resInput.addEventListener('blur', (e) => {
+        const val = e.target.value.toUpperCase().trim();
+        // Check if looks like colors (at least two words)
+        if (val.split(' ').length >= 2 && !val.includes('Ω')) {
+          const colors = val.split(' ');
+          let b1 = ResistorCalc.findClosestColor(colors[0], 'digit');
+          let b2 = ResistorCalc.findClosestColor(colors[1], 'digit');
+          let b3 = colors[2] ? ResistorCalc.findClosestColor(colors[2], 'mult') : null;
+          let b4 = colors[3] ? ResistorCalc.findClosestColor(colors[3], 'tol') : null;
+          
+          if (b1 && b2 && b3) {
+            const d1 = ResistorCalc.COLORS[b1].val;
+            const d2 = ResistorCalc.COLORS[b2].val;
+            const mult = ResistorCalc.COLORS[b3].mult;
+            let resistance = ((d1 * 10) + d2) * mult;
+            let unit = 'Ω';
+            if (resistance >= 1000000) { resistance /= 1000000; unit = 'MΩ'; }
+            else if (resistance >= 1000) { resistance /= 1000; unit = 'kΩ'; }
+            resistance = Math.round(resistance * 100) / 100;
+            let tolStr = '';
+            if (b4 && ResistorCalc.COLORS[b4].tol) tolStr = `±${ResistorCalc.COLORS[b4].tol}%`;
+            
+            // Auto correct input
+            e.target.value = `${resistance} ${unit} ${tolStr}`;
+            UI.showToast(`Auto-calculated from colors: ${b1} ${b2} ${b3} ${b4 || ''}`, 'info');
+          }
+        }
+      });
+    }
   },
 
   showDeleteModal(componentId) {
@@ -1094,12 +1209,26 @@ const Handlers = {
     document.getElementById('logoutBtn')?.addEventListener('click', Auth.logout);
 
     // --- Component Actions ---
+    document.getElementById('compCategory')?.addEventListener('change', (e) => {
+      UI.renderDynamicFields(e.target.value);
+    });
+
     document.getElementById('addComponentBtn')?.addEventListener('click', () => {
       UI.showComponentModal();
     });
 
     document.getElementById('componentForm')?.addEventListener('submit', (e) => {
       e.preventDefault();
+      
+      const attributes = {};
+      const attrInputs = document.querySelectorAll('#dynamicFields input');
+      attrInputs.forEach(input => {
+        const key = input.id.replace('attr_', '');
+        if (input.value.trim()) {
+          attributes[key] = input.value.trim();
+        }
+      });
+
       const comp = {
         name: document.getElementById('compName').value.trim(),
         category: document.getElementById('compCategory').value,
@@ -1110,7 +1239,8 @@ const Handlers = {
         supplier: document.getElementById('compSupplier').value.trim(),
         tags: document.getElementById('compTags').value.split(',').map(t => t.trim()).filter(Boolean),
         description: document.getElementById('compDescription').value.trim(),
-        imageUrl: document.getElementById('compImageUrl').value.trim()
+        imageUrl: document.getElementById('compImageUrl').value.trim(),
+        attributes: attributes
       };
 
       if (!comp.name || !comp.category) {
