@@ -103,6 +103,9 @@ const Storage = {
         state.activity = data.activity || [];
         state.projects = data.projects || [];
         UI.switchView(state.currentView);
+      }, (error) => {
+        console.error("Firebase Sync Error:", error);
+        UI.showToast("Cloud Sync Blocked! Please check your Firebase Database Rules.", 'error');
       });
     } else {
       state.components = Storage.get(CONFIG.STORAGE.COMPONENTS) || [];
@@ -113,25 +116,25 @@ const Storage = {
   },
   saveComponents() { 
     if (typeof FIREBASE_ENABLED !== 'undefined' && FIREBASE_ENABLED && firebase.auth().currentUser) {
-      firebase.database().ref('users/' + firebase.auth().currentUser.uid + '/components').set(state.components);
+      firebase.database().ref('users/' + firebase.auth().currentUser.uid + '/components').set(state.components).catch(e => UI.showToast("Save failed: Check Database Rules", 'error'));
     }
     Storage.set(CONFIG.STORAGE.COMPONENTS, state.components);
   },
   saveCategories() { 
     if (typeof FIREBASE_ENABLED !== 'undefined' && FIREBASE_ENABLED && firebase.auth().currentUser) {
-      firebase.database().ref('users/' + firebase.auth().currentUser.uid + '/categories').set(state.categories);
+      firebase.database().ref('users/' + firebase.auth().currentUser.uid + '/categories').set(state.categories).catch(e => UI.showToast("Save failed: Check Database Rules", 'error'));
     }
     Storage.set(CONFIG.STORAGE.CATEGORIES, state.categories); 
   },
   saveActivity() { 
     if (typeof FIREBASE_ENABLED !== 'undefined' && FIREBASE_ENABLED && firebase.auth().currentUser) {
-      firebase.database().ref('users/' + firebase.auth().currentUser.uid + '/activity').set(state.activity);
+      firebase.database().ref('users/' + firebase.auth().currentUser.uid + '/activity').set(state.activity).catch(e => UI.showToast("Save failed: Check Database Rules", 'error'));
     }
     Storage.set(CONFIG.STORAGE.ACTIVITY, state.activity); 
   },
   saveProjects() {
     if (typeof FIREBASE_ENABLED !== 'undefined' && FIREBASE_ENABLED && firebase.auth().currentUser) {
-      firebase.database().ref('users/' + firebase.auth().currentUser.uid + '/projects').set(state.projects);
+      firebase.database().ref('users/' + firebase.auth().currentUser.uid + '/projects').set(state.projects).catch(e => UI.showToast("Save failed: Check Database Rules", 'error'));
     }
     Storage.set(CONFIG.STORAGE.PROJECTS, state.projects);
   }
