@@ -849,36 +849,57 @@ const UI = {
       refreshIcons();
       return;
     }
-    
+    if (!UI.projectMultipliers) UI.projectMultipliers = {};
+
     grid.innerHTML = state.projects.map(p => {
+      const mult = UI.projectMultipliers[p.id] || 1;
       let canConsume = true;
+      let cost = 0;
+      
       const itemsHtml = p.items.map(item => {
         const comp = state.components.find(c => c.id === item.componentId);
         if (!comp) return '';
-        const hasEnough = comp.quantity >= item.requiredQty;
+        const totalReq = item.requiredQty * mult;
+        const hasEnough = comp.quantity >= totalReq;
         if (!hasEnough) canConsume = false;
+        cost += (comp.purchasePrice || 0) * totalReq;
+        
         return `
           <div style="display:flex; justify-content:space-between; font-size:12px; padding:4px 0; border-bottom:1px solid var(--border-color);">
-            <span>${escapeHtml(comp.name)}</span>
-            <span style="color: ${hasEnough ? 'var(--color-success)' : 'var(--color-danger)'}">${comp.quantity} / ${item.requiredQty}</span>
+            <span style="flex:1" class="text-truncate">${escapeHtml(comp.name)}</span>
+            <span style="color: ${hasEnough ? 'var(--color-success)' : 'var(--color-danger)'}">${comp.quantity} / ${totalReq}</span>
           </div>
         `;
       }).join('');
       
       return `
-        <div class="card" style="display:flex; flex-direction:column;">
-          <div class="card-header" style="display:flex; justify-content:space-between;">
-            <h3 class="card-title">${escapeHtml(p.name)}</h3>
-            <button class="btn-icon btn-icon--danger" onclick="UI.deleteProject('${p.id}')"><i data-lucide="trash-2"></i></button>
+        <div class="card" style="display:flex; flex-direction:column; position:relative; overflow:hidden;">
+          <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <h3 class="card-title text-truncate" style="margin-right:12px;">${escapeHtml(p.name)}</h3>
+            <button class="btn-icon btn-icon--danger" onclick="UI.deleteProject('${p.id}')" title="Delete BOM"><i data-lucide="trash-2"></i></button>
           </div>
+          
           <div style="padding:16px; flex:1;">
-            <div style="margin-bottom:8px; font-weight:600; font-size:12px;">Requirements:</div>
-            ${itemsHtml || '<p style="font-size:12px; color:var(--text-secondary);">No components added.</p>'}
+            <div style="display:flex; justify-content:space-between; margin-bottom:12px; align-items:center;">
+              <span style="font-weight:600; font-size:12px;">Build Quantity:</span>
+              <input type="number" value="${mult}" min="1" max="10000" style="width:70px; padding:4px; font-size:12px; border:1px solid var(--border-color); border-radius:4px; background:var(--color-bg); color:var(--color-text);" onchange="UI.projectMultipliers['${p.id}'] = parseInt(this.value)||1; UI.renderProjects()">
+            </div>
+            
+            <div style="margin-bottom:8px; font-weight:600; font-size:12px;">BOM Requirements:</div>
+            <div style="max-height:150px; overflow-y:auto; padding-right:4px;">
+              ${itemsHtml || '<p style="font-size:12px; color:var(--text-secondary);">No components added.</p>'}
+            </div>
+            <div style="margin-top:12px; font-weight:600; font-size:12px; display:flex; justify-content:space-between; color:var(--color-primary);">
+              <span>Est. Cost:</span>
+              <span>PKR ${cost.toLocaleString()}</span>
+            </div>
           </div>
-          <div style="padding:16px; border-top:1px solid var(--border-color);">
+          
+          <div style="padding:16px; border-top:1px solid var(--border-color); background:var(--color-bg);">
             <button class="btn btn-primary btn-full" ${!canConsume || p.items.length===0 ? 'disabled' : ''} onclick="UI.consumeProject('${p.id}')">
-              <i data-lucide="check-circle"></i> Consume Parts
+              <i data-lucide="check-circle"></i> Consume Parts for ${mult}x
             </button>
+            ${!canConsume && p.items.length > 0 ? '<div style="font-size:10px; color:var(--color-danger); text-align:center; margin-top:8px;"><i data-lucide="alert-triangle" style="width:10px; height:10px; margin-right:4px;"></i>Insufficient stock for simulation</div>' : ''}
           </div>
         </div>
       `;
@@ -889,6 +910,7 @@ const UI = {
   deleteProject(id) {
     if(confirm('Delete this project?')) {
       state.projects = state.projects.filter(p => p.id !== id);
+      delete UI.projectMultipliers[id];
       Storage.saveProjects();
       UI.renderProjects();
       UI.showToast('Project deleted');
@@ -898,11 +920,12 @@ const UI = {
   consumeProject(id) {
     const p = state.projects.find(proj => proj.id === id);
     if (!p) return;
-    if(confirm(`Deduct components for ${p.name}? This will permanently remove stock.`)) {
+    const mult = UI.projectMultipliers[id] || 1;
+    if(confirm(`Deduct components for ${mult}x ${p.name}? This will permanently remove stock.`)) {
       p.items.forEach(item => {
         const comp = state.components.find(c => c.id === item.componentId);
         if (comp) {
-          comp.quantity -= item.requiredQty;
+          comp.quantity -= (item.requiredQty * mult);
           comp.lastUpdated = new Date().toISOString().split('T')[0];
         }
       });
@@ -1455,7 +1478,14 @@ const Charts = {
     const stockCtx = document.getElementById('stockChart');
     if (stockCtx) {
       if (state.charts.stock) state.charts.stock.destroy();
-      const stockData = state.components.slice(0, 10).map(c => ({
+      // Sort components by criticality: how far below/above minStock they are
+      const sortedCritical = [...state.components].sort((a, b) => {
+        const diffA = a.quantity - a.minStock;
+        const diffB = b.quantity - b.minStock;
+        return diffA - diffB;
+      }).slice(0, 10);
+      
+      const stockData = sortedCritical.map(c => ({
         name: c.name.length > 18 ? c.name.substring(0, 18) + '…' : c.name,
         qty: c.quantity,
         min: c.minStock,
@@ -1496,6 +1526,56 @@ const Charts = {
             y: { beginAtZero: true, grid: { color: gridColor }, ticks: { precision: 0 } }
           },
           plugins: { legend: { position: 'bottom', labels: { padding: 16, usePointStyle: true, pointStyleWidth: 10 } } }
+        }
+      });
+    }
+
+    // Inventory Value by Category Chart
+    const valueCtx = document.getElementById('valueChart');
+    if (valueCtx) {
+      if (state.charts.value) state.charts.value.destroy();
+      
+      const valData = state.categories.map(cat => {
+        const compsInCat = state.components.filter(c => c.category === cat.id);
+        const totalVal = compsInCat.reduce((sum, c) => sum + (c.quantity * (c.purchasePrice || 0)), 0);
+        return {
+          label: cat.name,
+          value: totalVal,
+          color: cat.color
+        };
+      }).filter(d => d.value > 0).sort((a,b) => b.value - a.value);
+
+      state.charts.value = new Chart(valueCtx, {
+        type: 'bar',
+        data: {
+          labels: valData.map(d => d.label),
+          datasets: [{
+            label: 'Total Value (PKR)',
+            data: valData.map(d => d.value),
+            backgroundColor: valData.map(d => d.color + '80'),
+            borderColor: valData.map(d => d.color),
+            borderWidth: 1,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          indexAxis: 'y', // Make it a horizontal bar chart
+          scales: {
+            x: { beginAtZero: true, grid: { color: gridColor } },
+            y: { grid: { display: false } }
+          },
+          plugins: { 
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return 'PKR ' + context.parsed.x.toLocaleString();
+                }
+              }
+            }
+          }
         }
       });
     }
