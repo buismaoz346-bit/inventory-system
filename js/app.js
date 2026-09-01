@@ -2127,12 +2127,12 @@ const AI = {
   getApiKey() {
     let key = Storage.get('gemini_api_key');
     if (!key) {
-      key = prompt("Please enter your Gemini API Key to use AI features:\n\n(You can get a free key from Google AI Studio)");
+      key = prompt("Please enter your Gemini API Key to use real AI features:\n\n(Or leave blank and click OK to use Demo Mode for portfolio viewing)");
       if (key && key.trim()) {
         Storage.set('gemini_api_key', key.trim());
       } else {
-        UI.showToast("AI features require a Gemini API Key.", "error");
-        return null;
+        UI.showToast("Running in AI Demo Mode", "info");
+        return "DEMO_MODE";
       }
     }
     return key;
@@ -2143,6 +2143,29 @@ const AI = {
     if (!apiKey) return null;
 
     UI.showToast("Asking AI... Please wait.", "info");
+
+    // ============================================
+    // DEMO MODE FOR RECRUITERS / PORTFOLIO VIEWERS
+    // ============================================
+    if (apiKey === "DEMO_MODE") {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          if (promptText.includes("match it against the inventory")) {
+            const allIds = state.components.map(c => c.id);
+            resolve(JSON.stringify(allIds.length > 0 ? [allIds[0]] : []));
+          } else if (promptText.includes("Identify the electronic component")) {
+            resolve(JSON.stringify({
+              name: "Demo IC (LM555 Timer)",
+              category: "ICs",
+              description: "Standard 555 timer IC identified in demo mode.",
+              tags: ["timing", "oscillator", "DIP-8"]
+            }));
+          } else {
+            resolve("[]");
+          }
+        }, 1500); 
+      });
+    }
 
     const endpoint = imageBase64 
       ? `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`
