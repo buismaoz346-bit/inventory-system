@@ -124,6 +124,25 @@
     </div>
   </div>
 
+  <!-- ========== COMMAND PALETTE (Ctrl+K) ========== -->
+  <div class="cmd-palette-overlay" id="cmdPaletteOverlay" style="display:none">
+    <div class="cmd-palette">
+      <div class="cmd-palette-header">
+        <i data-lucide="search"></i>
+        <input type="text" id="cmdPaletteInput" placeholder="Search components, actions, views..." autocomplete="off" spellcheck="false">
+        <kbd>ESC</kbd>
+      </div>
+      <div class="cmd-palette-results" id="cmdPaletteResults">
+        <div class="cmd-palette-empty">Type to search components, navigate views, or run actions...</div>
+      </div>
+      <div class="cmd-palette-footer">
+        <span><kbd>↑↓</kbd> Navigate</span>
+        <span><kbd>↵</kbd> Select</span>
+        <span><kbd>Ctrl+K</kbd> Toggle</span>
+      </div>
+    </div>
+  </div>
+
   <!-- ========== TOAST NOTIFICATIONS ========== -->
   <div id="toastContainer" class="toast-container"></div>
 
@@ -132,11 +151,19 @@
     <div class="modal modal-lg">
       <div class="modal-header">
         <h2 id="componentModalTitle">Add New Component</h2>
-        <button class="btn-icon modal-close-btn" data-close="componentModal"><i data-lucide="x"></i></button>
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="btn btn-secondary btn-sm" id="aiIdentifyBtn" title="Identify Component with AI via Camera" style="color:var(--color-primary); border-color:var(--color-primary);">
+            <i data-lucide="camera"></i><span>AI Scan</span>
+          </button>
+          <button class="btn-icon modal-close-btn" data-close="componentModal"><i data-lucide="x"></i></button>
+        </div>
       </div>
       <div class="modal-body">
         <form id="componentForm">
           <div class="form-grid">
+            <!-- Hidden file input for AI Camera Scan -->
+            <input type="file" id="aiCameraInput" accept="image/*" capture="environment" style="display:none;">
+            
             <div class="form-group">
               <label for="compName">Component Name *</label>
               <input type="text" id="compName" placeholder="e.g. Arduino Uno R3" required>
@@ -290,9 +317,12 @@
         <div class="header-left">
           <button class="btn-icon" id="menuToggle" aria-label="Toggle menu"><i data-lucide="menu"></i></button>
         </div>
-        <div class="header-search">
-          <i data-lucide="search"></i>
-          <input type="text" id="globalSearch" placeholder="Search components..." aria-label="Search components">
+        <div class="header-search" style="position:relative;">
+          <i data-lucide="search" style="position:absolute; left:12px; top:50%; transform:translateY(-50%);"></i>
+          <input type="text" id="globalSearch" placeholder="Search components..." aria-label="Search components" style="padding-right: 40px; padding-left: 36px; width: 100%;">
+          <button class="btn-icon" id="aiSearchBtn" style="position:absolute; right:4px; top:50%; transform:translateY(-50%); width:30px; height:30px; color:var(--color-primary);" title="AI Smart Search (Natural Language)">
+            <i data-lucide="sparkles" style="width:16px; height:16px;"></i>
+          </button>
         </div>
         <div class="header-actions">
           <button class="btn btn-secondary btn-sm" id="scanQrBtn"><i data-lucide="scan"></i><span class="hide-mobile">Scan Barcode</span></button>
@@ -396,6 +426,7 @@
           <div style="display:flex; gap:24px; align-items:flex-start; margin-top:16px;" class="tools-layout">
             <div class="card" style="width:250px; flex-shrink:0; overflow:hidden;" id="toolsSidebar">
               <button class="tool-tab active" onclick="Tools.switch('resistor')"><i data-lucide="palette"></i> Resistor Color Code</button>
+              <button class="tool-tab" onclick="Tools.switch('smd')"><i data-lucide="hash"></i> SMD Resistor Code</button>
               <button class="tool-tab" onclick="Tools.switch('ohms')"><i data-lucide="zap"></i> Ohm's Law & Power</button>
               <button class="tool-tab" onclick="Tools.switch('led')"><i data-lucide="lightbulb"></i> LED Series Resistor</button>
               <button class="tool-tab" onclick="Tools.switch('divider')"><i data-lucide="split-square-horizontal"></i> Voltage Divider</button>

@@ -664,8 +664,11 @@ const UI = {
     refreshIcons();
   },
 
-  renderInventory() {
-    const filtered = Data.getFilteredComponents();
+  renderInventory(bypassFilterRecalc = false) {
+    if (!bypassFilterRecalc) {
+      state.filteredComponents = Data.getFilteredComponents();
+    }
+    const filtered = state.filteredComponents;
     const tbody = document.getElementById('inventoryTableBody');
     const empty = document.getElementById('emptyInventory');
     const table = document.getElementById('inventoryTable');
@@ -740,6 +743,9 @@ const UI = {
             <div class="action-btns">
               <button class="action-btn action-btn--print" data-action="print" data-id="${c.id}" title="Print Label">
                 <i data-lucide="printer"></i>
+              </button>
+              <button class="action-btn" data-action="duplicate" data-id="${c.id}" title="Duplicate" style="color:var(--color-primary);">
+                <i data-lucide="copy"></i>
               </button>
               <button class="action-btn action-btn--edit" data-action="edit" data-id="${c.id}" title="Edit">
                 <i data-lucide="pencil"></i>
@@ -1602,10 +1608,28 @@ const Handlers = {
       const printBtn = e.target.closest('[data-action="print"]');
       const incBtn = e.target.closest('[data-action="quick-inc"]');
       const decBtn = e.target.closest('[data-action="quick-dec"]');
+      const dupBtn = e.target.closest('[data-action="duplicate"]');
       
       if (editBtn) UI.showComponentModal(editBtn.dataset.id);
       if (deleteBtn) UI.showDeleteModal(deleteBtn.dataset.id);
       if (printBtn) UI.showQrPrintModal(printBtn.dataset.id);
+
+      if (dupBtn) {
+        const orig = state.components.find(c => c.id === dupBtn.dataset.id);
+        if (orig) {
+          const clone = JSON.parse(JSON.stringify(orig));
+          clone.id = 'comp-' + Math.random().toString(36).substr(2, 5) + '-' + Date.now().toString(36);
+          clone.name = orig.name + ' (Copy)';
+          clone.dateAdded = new Date().toISOString().split('T')[0];
+          clone.lastUpdated = clone.dateAdded;
+          state.components.push(clone);
+          Storage.saveComponents();
+          Data.logActivity('added', clone);
+          UI.renderInventory();
+          UI.showComponentModal(clone.id);
+          UI.showToast(`Duplicated "${orig.name}" — edit the copy now!`, 'success');
+        }
+      }
       
       if (incBtn) {
         const comp = state.components.find(c => c.id === incBtn.dataset.id);
@@ -1899,12 +1923,378 @@ function init() {
 document.addEventListener('DOMContentLoaded', init);
 window.UI = UI;
 
+// ============================================================
+// COMMAND PALETTE (Ctrl+K)
+// ============================================================
+const CommandPalette = {
+  selectedIndex: -1,
+  results: [],
 
+  open() {
+    const overlay = document.getElementById('cmdPaletteOverlay');
+    overlay.style.display = 'flex';
+    const input = document.getElementById('cmdPaletteInput');
+    input.value = '';
+    input.focus();
+    this.selectedIndex = -1;
+    this.renderDefault();
+    refreshIcons();
+  },
 
+  close() {
+    document.getElementById('cmdPaletteOverlay').style.display = 'none';
+  },
 
+  toggle() {
+    const overlay = document.getElementById('cmdPaletteOverlay');
+    if (overlay.style.display === 'none' || overlay.style.display === '') {
+      this.open();
+    } else {
+      this.close();
+    }
+  },
 
+  getActions() {
+    return [
+      { type: 'action', icon: 'plus', label: 'Add New Component', action: () => UI.showComponentModal() },
+      { type: 'action', icon: 'scan', label: 'Scan Barcode', action: () => UI.showQrScannerModal() },
+      { type: 'action', icon: 'download', label: 'Export CSV', action: () => document.getElementById('exportBtn')?.click() },
+      { type: 'action', icon: 'upload', label: 'Import CSV', action: () => document.getElementById('importBtn')?.click() },
+      { type: 'action', icon: 'refresh-cw', label: 'Force Sync', action: () => document.getElementById('forceSyncBtn')?.click() },
+      { type: 'action', icon: 'moon', label: 'Toggle Theme', action: () => document.getElementById('themeToggle')?.click() },
+      { type: 'view', icon: 'layout-dashboard', label: 'Go to Dashboard', action: () => UI.switchView('dashboard') },
+      { type: 'view', icon: 'package', label: 'Go to Inventory', action: () => UI.switchView('inventory') },
+      { type: 'view', icon: 'briefcase', label: 'Go to Projects (BOM)', action: () => UI.switchView('projects') },
+      { type: 'view', icon: 'tags', label: 'Go to Categories', action: () => UI.switchView('categories') },
+      { type: 'view', icon: 'map', label: 'Go to Location Map', action: () => UI.switchView('map') },
+      { type: 'view', icon: 'history', label: 'Go to Activity Log', action: () => UI.switchView('activity') },
+      { type: 'view', icon: 'wrench', label: 'Go to Engineering Tools', action: () => UI.switchView('tools') },
+    ];
+  },
 
+  search(query) {
+    if (!query.trim()) {
+      this.renderDefault();
+      return;
+    }
 
+    const q = query.toLowerCase();
+    const results = [];
 
+    // Search components
+    state.components.forEach(c => {
+      const searchStr = `${c.name} ${c.description || ''} ${c.location || ''} ${c.supplier || ''} ${(c.tags || []).join(' ')}`.toLowerCase();
+      if (searchStr.includes(q)) {
+        results.push({
+          type: 'component',
+          icon: Data.getCategoryIcon(c.category),
+          label: c.name,
+          sublabel: `${Data.getCategoryName(c.category)} · Qty: ${c.quantity}${c.location ? ' · ' + c.location : ''}`,
+          action: () => { UI.switchView('inventory'); UI.showComponentModal(c.id); }
+        });
+      }
+    });
 
+    // Search actions & views
+    this.getActions().forEach(a => {
+      if (a.label.toLowerCase().includes(q)) {
+        results.push(a);
+      }
+    });
 
+    this.results = results;
+    this.selectedIndex = results.length > 0 ? 0 : -1;
+    this.renderResults();
+  },
+
+  renderDefault() {
+    const actions = this.getActions();
+    this.results = actions;
+    this.selectedIndex = -1;
+    this.renderResults();
+  },
+
+  renderResults() {
+    const container = document.getElementById('cmdPaletteResults');
+    if (this.results.length === 0) {
+      container.innerHTML = '<div class="cmd-palette-empty">No results found</div>';
+      return;
+    }
+
+    const grouped = {};
+    this.results.forEach(r => {
+      const group = r.type === 'component' ? 'Components' : r.type === 'view' ? 'Navigation' : 'Actions';
+      if (!grouped[group]) grouped[group] = [];
+      grouped[group].push(r);
+    });
+
+    let html = '';
+    let globalIdx = 0;
+    for (const [group, items] of Object.entries(grouped)) {
+      html += `<div class="cmd-palette-group">${group}</div>`;
+      items.forEach(item => {
+        const isSelected = globalIdx === this.selectedIndex;
+        html += `<div class="cmd-palette-item ${isSelected ? 'cmd-palette-item--selected' : ''}" data-index="${globalIdx}">
+          <i data-lucide="${item.icon}"></i>
+          <div class="cmd-palette-item-text">
+            <span class="cmd-palette-item-label">${escapeHtml(item.label)}</span>
+            ${item.sublabel ? `<span class="cmd-palette-item-sublabel">${escapeHtml(item.sublabel)}</span>` : ''}
+          </div>
+          ${item.type === 'component' ? '<kbd>Edit</kbd>' : item.type === 'view' ? '<kbd>Go</kbd>' : '<kbd>Run</kbd>'}
+        </div>`;
+        globalIdx++;
+      });
+    }
+
+    container.innerHTML = html;
+    refreshIcons();
+
+    // Click handlers
+    container.querySelectorAll('.cmd-palette-item').forEach(el => {
+      el.addEventListener('click', () => {
+        const idx = parseInt(el.dataset.index);
+        if (this.results[idx]) {
+          this.results[idx].action();
+          this.close();
+        }
+      });
+    });
+  },
+
+  navigate(direction) {
+    if (this.results.length === 0) return;
+    this.selectedIndex += direction;
+    if (this.selectedIndex < 0) this.selectedIndex = this.results.length - 1;
+    if (this.selectedIndex >= this.results.length) this.selectedIndex = 0;
+    this.renderResults();
+    
+    // Scroll selected into view
+    const selected = document.querySelector('.cmd-palette-item--selected');
+    if (selected) selected.scrollIntoView({ block: 'nearest' });
+  },
+
+  execute() {
+    if (this.selectedIndex >= 0 && this.results[this.selectedIndex]) {
+      this.results[this.selectedIndex].action();
+      this.close();
+    }
+  }
+};
+
+// Command Palette keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+  // Ctrl+K or Cmd+K to toggle
+  if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+    e.preventDefault();
+    CommandPalette.toggle();
+    return;
+  }
+
+  const overlay = document.getElementById('cmdPaletteOverlay');
+  if (overlay.style.display === 'none' || overlay.style.display === '') return;
+
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    CommandPalette.close();
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    CommandPalette.navigate(1);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    CommandPalette.navigate(-1);
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    CommandPalette.execute();
+  }
+});
+
+// Command Palette input handler
+document.getElementById('cmdPaletteInput')?.addEventListener('input', (e) => {
+  CommandPalette.search(e.target.value);
+});
+
+// Click outside to close
+document.getElementById('cmdPaletteOverlay')?.addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) CommandPalette.close();
+});
+
+window.CommandPalette = CommandPalette;
+
+// ============================================================
+// AI INTEGRATIONS (Gemini API)
+// ============================================================
+const AI = {
+  getApiKey() {
+    let key = Storage.get('gemini_api_key');
+    if (!key) {
+      key = prompt("Please enter your Gemini API Key to use AI features:\n\n(You can get a free key from Google AI Studio)");
+      if (key && key.trim()) {
+        Storage.set('gemini_api_key', key.trim());
+      } else {
+        UI.showToast("AI features require a Gemini API Key.", "error");
+        return null;
+      }
+    }
+    return key;
+  },
+
+  async callGemini(promptText, imageBase64 = null) {
+    const apiKey = this.getApiKey();
+    if (!apiKey) return null;
+
+    UI.showToast("Asking AI... Please wait.", "info");
+
+    const endpoint = imageBase64 
+      ? `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`
+      : `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+    let contents = [];
+    
+    if (imageBase64) {
+      const base64Data = imageBase64.split(',')[1];
+      const mimeType = imageBase64.substring(imageBase64.indexOf(':') + 1, imageBase64.indexOf(';'));
+      
+      contents = [{
+        parts: [
+          { text: promptText },
+          { inlineData: { mimeType: mimeType, data: base64Data } }
+        ]
+      }];
+    } else {
+      contents = [{ parts: [{ text: promptText }] }];
+    }
+
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: contents })
+      });
+
+      const data = await response.json();
+      
+      if (data.error) {
+        if (data.error.code === 400 && data.error.message.includes("API key not valid")) {
+           Storage.set('gemini_api_key', null);
+           UI.showToast("Invalid API Key. Please try again.", "error");
+        } else {
+           UI.showToast(`AI Error: ${data.error.message}`, "error");
+        }
+        return null;
+      }
+
+      if (data.candidates && data.candidates.length > 0) {
+        return data.candidates[0].content.parts[0].text;
+      }
+      return null;
+    } catch (err) {
+      console.error(err);
+      UI.showToast("Network error connecting to AI.", "error");
+      return null;
+    }
+  },
+
+  async smartSearch() {
+    const query = prompt("What are you looking for? (e.g. '3.3v regulators', 'red LEDs')");
+    if (!query) return;
+
+    const catalog = state.components.map(c => ({
+      id: c.id,
+      name: c.name,
+      cat: Data.getCategoryName(c.category),
+      tags: c.tags,
+      desc: c.description
+    }));
+
+    const systemPrompt = `
+      You are an AI assistant for an electronics inventory system.
+      The user is searching for: "${query}"
+      
+      Here is their inventory:
+      ${JSON.stringify(catalog)}
+      
+      Analyze the request and match it against the inventory.
+      Return ONLY a JSON array of matching component IDs. No markdown.
+      Example: ["comp-123", "comp-456"]
+    `;
+
+    const aiResponse = await this.callGemini(systemPrompt);
+    if (!aiResponse) return;
+
+    try {
+      const cleanJson = aiResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
+      const matchedIds = JSON.parse(cleanJson);
+      
+      if (matchedIds.length === 0) {
+        UI.showToast("AI found no matches.", "info");
+      } else {
+        UI.showToast(`AI found ${matchedIds.length} matches!`, "success");
+        // Clear standard search string
+        document.getElementById('inventorySearch').value = '';
+        state.filters.search = '';
+        
+        // Render but filter manually
+        state.filteredComponents = state.components.filter(c => matchedIds.includes(c.id));
+        UI.renderInventory(true); // Need to modify renderInventory slightly to accept forceFiltered flag
+      }
+    } catch (e) {
+      console.error(e);
+      UI.showToast("AI returned invalid format.", "error");
+    }
+  },
+
+  async identifyComponent(file) {
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const base64Image = e.target.result;
+      
+      const prompt = `
+        Identify the electronic component in this image.
+        Return strictly a JSON object. No markdown.
+        {
+          "name": "Clear name (e.g. 'LM317 Voltage Regulator')",
+          "category": "Guess category",
+          "description": "Brief description",
+          "tags": ["tag1"]
+        }
+      `;
+
+      const aiResponse = await this.callGemini(prompt, base64Image);
+      if (!aiResponse) return;
+
+      try {
+        const cleanJson = aiResponse.replace(/```json/gi, '').replace(/```/g, '').trim();
+        const data = JSON.parse(cleanJson);
+        
+        if (data.name) document.getElementById('compName').value = data.name;
+        if (data.description) document.getElementById('compDescription').value = data.description;
+        if (data.tags && Array.isArray(data.tags)) document.getElementById('compTags').value = data.tags.join(', ');
+        
+        if (data.category) {
+          const select = document.getElementById('compCategory');
+          for (let i = 0; i < select.options.length; i++) {
+            if (select.options[i].text.toLowerCase().includes(data.category.toLowerCase())) {
+              select.selectedIndex = i;
+              select.dispatchEvent(new Event('change'));
+              break;
+            }
+          }
+        }
+        UI.showToast("AI identified component!", "success");
+      } catch (err) {
+        UI.showToast("AI could not extract data.", "error");
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+};
+window.AI = AI;
+
+// AI Event Listeners
+document.getElementById('aiSearchBtn')?.addEventListener('click', () => AI.smartSearch());
+document.getElementById('aiIdentifyBtn')?.addEventListener('click', () => document.getElementById('aiCameraInput').click());
+document.getElementById('aiCameraInput')?.addEventListener('change', (e) => {
+  if (e.target.files.length > 0) AI.identifyComponent(e.target.files[0]);
+});

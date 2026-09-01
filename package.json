@@ -1,0 +1,44 @@
+{
+    "name": "inventory-system",
+    "version": "1.0.0",
+    "description": "",
+    "main": "main.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "start": "electron .",
+        "build-exe": "electron-builder --win"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/buismaoz346-bit/inventory-system.git"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "type": "commonjs",
+    "bugs": {
+        "url": "https://github.com/buismaoz346-bit/inventory-system/issues"
+    },
+    "homepage": "https://github.com/buismaoz346-bit/inventory-system#readme",
+    "dependencies": {
+        "@capacitor-firebase/app": "^6.3.1",
+        "@capacitor-firebase/authentication": "^6.3.1",
+        "@capacitor/core": "^6.0.0",
+        "express": "^5.2.1"
+    },
+    "devDependencies": {
+        "@capacitor/android": "^6.0.0",
+        "@capacitor/cli": "^6.0.0",
+        "electron": "^44.0.0",
+        "electron-builder": "^26.15.3",
+        "electron-packager": "^17.1.2"
+    },
+    "build": {
+        "appId": "com.electroparts.ims",
+        "productName": "ElectroParts IMS",
+        "win": {
+            "target": "nsis",
+            "icon": "android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.webp"
+        }
+    }
+}

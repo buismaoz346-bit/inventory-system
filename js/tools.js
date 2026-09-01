@@ -20,6 +20,7 @@ const Tools = {
     let html = '';
     switch (this.activeTool) {
       case 'resistor': html = this.getResistorHtml(); break;
+      case 'smd': html = this.getSmdHtml(); break;
       case 'ohms': html = this.getOhmsHtml(); break;
       case 'led': html = this.getLedHtml(); break;
       case 'divider': html = this.getDividerHtml(); break;
@@ -63,6 +64,42 @@ const Tools = {
       {n:'Violet', v:7, m:10000000}, {n:'Grey', v:8, m:100000000}, {n:'White', v:9, m:1000000000}
     ];
     return colors.map(c => `<option value="${isMultiplier ? c.m : c.v}">${c.n}</option>`).join('');
+  },
+
+  getSmdHtml() {
+    return `
+      <h2 style="margin-bottom:16px;">SMD Resistor Code Calculator</h2>
+      <p style="color:var(--text-secondary); margin-bottom:16px;">Supports 3-digit (e.g. 103), 4-digit (e.g. 4702), and EIA-96 (e.g. 01C) codes.</p>
+      <div style="display:flex; gap:16px;">
+        <div style="flex:1;">
+          <div class="form-group">
+            <label>SMD Code printed on resistor</label>
+            <input type="text" id="t-smd-code" class="form-control" placeholder="e.g. 103, 4R7, 01C" style="text-transform:uppercase; font-size: 20px; letter-spacing: 2px;">
+          </div>
+          <div style="margin-top: 16px; font-size: 13px; color: var(--text-secondary);">
+            <strong>Examples:</strong><br>
+            • <b>103</b> = 10 × 10³ = 10 kΩ<br>
+            • <b>4R7</b> = 4.7 Ω (R is decimal point)<br>
+            • <b>4702</b> = 470 × 10² = 47 kΩ<br>
+            • <b>01C</b> = EIA-96 format = 10 kΩ
+          </div>
+        </div>
+        <div class="card" style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; background:var(--color-surface-hover);">
+          <!-- Visual SMD Resistor -->
+          <div style="background: #111; width: 140px; height: 60px; border-radius: 4px; display: flex; align-items: center; justify-content: center; position: relative; margin-bottom: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+            <!-- Silver Terminals -->
+            <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 20px; background: linear-gradient(90deg, #ccc, #f0f0f0, #ccc); border-radius: 4px 0 0 4px;"></div>
+            <div style="position: absolute; right: 0; top: 0; bottom: 0; width: 20px; background: linear-gradient(90deg, #ccc, #f0f0f0, #ccc); border-radius: 0 4px 4px 0;"></div>
+            <!-- Printed Code -->
+            <div id="t-smd-visual" style="color: #ddd; font-family: monospace; font-size: 28px; font-weight: bold; letter-spacing: 2px; z-index: 1;">---</div>
+          </div>
+          
+          <div style="font-size:14px; color:var(--text-secondary);">Resistance</div>
+          <div id="t-smd-result" style="font-size:32px; font-weight:bold; color:var(--color-primary); margin:8px 0;">0 Ω</div>
+          <div id="t-smd-tol" style="font-size:14px;"></div>
+        </div>
+      </div>
+    `;
   },
 
   getOhmsHtml() {
@@ -250,7 +287,11 @@ const Tools = {
       ['t-r-1','t-r-2','t-r-3','t-r-4'].forEach(id => bind(id, () => this.calcResistor()));
       this.calcResistor();
     }
-    else if (tool === 'led') {
+    if (tool === 'smd') {
+      bind('t-smd-code', () => this.calcSmd());
+      this.calcSmd();
+    }
+    if (tool === 'led') {
       ['t-l-vs','t-l-vf','t-l-i'].forEach(id => bind(id, () => this.calcLed()));
       this.calcLed();
     }
@@ -300,6 +341,78 @@ const Tools = {
       if (val >= 1000) return (val/1000).toFixed(2) + ' kΩ';
     }
     return val.toFixed(2) + ' ' + unit;
+  },
+
+  calcSmd() {
+    let code = (document.getElementById('t-smd-code').value || '').trim().toUpperCase();
+    const visual = document.getElementById('t-smd-visual');
+    const result = document.getElementById('t-smd-result');
+    const tolLabel = document.getElementById('t-smd-tol');
+
+    visual.textContent = code || '---';
+    if (!code) {
+      result.textContent = '0 Ω';
+      tolLabel.textContent = '';
+      return;
+    }
+
+    let resistance = NaN;
+    let tolerance = '±5% (Standard) or ±1% (Precision)';
+
+    // Check for "R" or "M" or "K" acting as decimal point (e.g. 4R7)
+    if (/^[0-9]+[RMK][0-9]*$/.test(code) || /^[RMK][0-9]+$/.test(code)) {
+      const match = code.match(/([0-9]*)([RMK])([0-9]*)/);
+      if (match) {
+        let valStr = match[1] + '.' + match[3];
+        if (match[1] === '') valStr = '0.' + match[3];
+        if (match[3] === '') valStr = match[1] + '.0';
+        resistance = parseFloat(valStr);
+        if (match[2] === 'K') resistance *= 1000;
+        if (match[2] === 'M') resistance *= 1000000;
+      }
+    } 
+    // EIA-96 format (e.g. 01C = 10k) - 2 digits + 1 letter
+    else if (/^[0-9]{2}[A-Z]$/.test(code)) {
+      const eiaValues = {
+        '01': 100, '02': 102, '03': 105, '04': 107, '05': 110, '06': 113, '07': 115, '08': 118, '09': 121, '10': 124,
+        '11': 127, '12': 130, '13': 133, '14': 137, '15': 140, '16': 143, '17': 147, '18': 150, '19': 154, '20': 158,
+        '21': 162, '22': 165, '23': 169, '24': 174, '25': 178, '26': 182, '27': 187, '28': 191, '29': 196, '30': 200,
+        '31': 205, '32': 210, '33': 215, '34': 221, '35': 226, '36': 232, '37': 237, '38': 243, '39': 249, '40': 255,
+        '41': 261, '42': 267, '43': 274, '44': 280, '45': 287, '46': 294, '47': 301, '48': 309, '49': 316, '50': 324,
+        '51': 332, '52': 340, '53': 348, '54': 357, '55': 365, '56': 374, '57': 383, '58': 392, '59': 402, '60': 412,
+        '61': 422, '62': 432, '63': 442, '64': 453, '65': 464, '66': 475, '67': 487, '68': 499, '69': 511, '70': 523,
+        '71': 536, '72': 549, '73': 562, '74': 576, '75': 590, '76': 604, '77': 619, '78': 634, '79': 649, '80': 665,
+        '81': 681, '82': 698, '83': 715, '84': 732, '85': 750, '86': 768, '87': 787, '88': 806, '89': 825, '90': 845,
+        '91': 866, '92': 887, '93': 909, '94': 931, '95': 953, '96': 976
+      };
+      const eiaMultipliers = { 'Z': 0.001, 'Y': 0.01, 'R': 0.01, 'X': 0.1, 'S': 0.1, 'A': 1, 'B': 10, 'H': 10, 'C': 100, 'D': 1000, 'E': 10000, 'F': 100000 };
+      
+      const valCode = code.substring(0, 2);
+      const multCode = code.charAt(2);
+      
+      if (eiaValues[valCode] && eiaMultipliers[multCode]) {
+        resistance = eiaValues[valCode] * eiaMultipliers[multCode];
+        tolerance = '±1% (EIA-96)';
+      }
+    }
+    // 3 or 4 digit standard format
+    else if (/^[0-9]{3,4}$/.test(code)) {
+      const len = code.length;
+      const val = parseInt(code.substring(0, len - 1));
+      const mult = parseInt(code.charAt(len - 1));
+      resistance = val * Math.pow(10, mult);
+      tolerance = len === 3 ? '±5%' : '±1%';
+    }
+
+    if (isNaN(resistance)) {
+      result.textContent = 'Invalid Code';
+      tolLabel.textContent = '';
+      visual.style.color = '#ef4444';
+    } else {
+      result.textContent = this.fmt(resistance, 'Ω');
+      tolLabel.textContent = tolerance;
+      visual.style.color = '#fff';
+    }
   },
 
   calcResistor() {

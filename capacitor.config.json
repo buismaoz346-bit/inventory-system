@@ -1,0 +1,10 @@
+{
+  "appId": "com.electroparts.ims",
+  "appName": "ElectroParts",
+  "webDir": "www",
+  "plugins": {
+    "FirebaseAuthentication": {
+      "providers": ["google.com"]
+    }
+  }
+}
