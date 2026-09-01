@@ -1196,7 +1196,7 @@ const UI = {
     UI.showModal('qrPrintModal');
   },
 
-  showQrScannerModal() {
+  showQrScannerModal(mode = 'edit') {
     UI.showModal('qrScannerModal');
     if (typeof Html5QrcodeScanner !== 'undefined') {
       const html5QrcodeScanner = new Html5QrcodeScanner(
@@ -1210,8 +1210,17 @@ const UI = {
         // Find component
         const comp = state.components.find(c => c.id === decodedText);
         if (comp) {
-          UI.showToast(`Found ${comp.name}`, 'success');
-          UI.showComponentModal(comp.id);
+          if (mode === 'bulk') {
+            const bulkScanInput = document.getElementById('bulkBarcodeScan');
+            if (bulkScanInput) {
+              bulkScanInput.value = decodedText;
+              bulkScanInput.dispatchEvent(new KeyboardEvent('keypress', { key: 'Enter' }));
+              UI.showModal('bulkReceiveModal');
+            }
+          } else {
+            UI.showToast(`Found ${comp.name}`, 'success');
+            UI.showComponentModal(comp.id);
+          }
         } else {
           UI.showToast('Component not found in inventory', 'error');
         }
@@ -1731,6 +1740,88 @@ const Handlers = {
 
     document.getElementById('scanQrBtn')?.addEventListener('click', () => {
       UI.showQrScannerModal();
+    });
+
+    // --- Bulk Receive Quick Adjust ---
+    let bulkItems = {}; // { compId: { comp, addedQty } }
+    
+    function renderBulkList() {
+      const tbody = document.getElementById('bulkReceiveList');
+      if (!tbody) return;
+      tbody.innerHTML = Object.values(bulkItems).map(item => `
+        <tr>
+          <td><div class="text-truncate" style="max-width:200px;" title="${escapeHtml(item.comp.name)}">${escapeHtml(item.comp.name)}</div></td>
+          <td>
+            <div style="display:flex; align-items:center; gap:4px;">
+              <button class="btn btn-secondary btn-sm" style="padding:2px 6px;" onclick="document.getElementById('bulkInput_${item.comp.id}').stepDown(); document.getElementById('bulkInput_${item.comp.id}').dispatchEvent(new Event('change'))">-</button>
+              <input type="number" id="bulkInput_${item.comp.id}" value="${item.addedQty}" min="1" style="width:50px; padding:2px; text-align:center;" onchange="
+                const val = parseInt(this.value)||1;
+                const list = window._bulkItems;
+                if(list['${item.comp.id}']) list['${item.comp.id}'].addedQty = val;
+              ">
+              <button class="btn btn-secondary btn-sm" style="padding:2px 6px;" onclick="document.getElementById('bulkInput_${item.comp.id}').stepUp(); document.getElementById('bulkInput_${item.comp.id}').dispatchEvent(new Event('change'))">+</button>
+            </div>
+          </td>
+          <td><button class="btn-icon btn-icon--danger" onclick="delete window._bulkItems['${item.comp.id}']; document.getElementById('bulkBarcodeScan').dispatchEvent(new Event('renderBulk'))"><i data-lucide="trash-2"></i></button></td>
+        </tr>
+      `).join('');
+      refreshIcons();
+    }
+
+    document.getElementById('bulkReceiveBtn')?.addEventListener('click', () => {
+      bulkItems = {};
+      window._bulkItems = bulkItems;
+      renderBulkList();
+      document.getElementById('bulkBarcodeScan').value = '';
+      UI.showModal('bulkReceiveModal');
+      setTimeout(() => document.getElementById('bulkBarcodeScan').focus(), 100);
+    });
+
+    document.getElementById('bulkCameraScanBtn')?.addEventListener('click', () => {
+      UI.hideModal('bulkReceiveModal');
+      UI.showQrScannerModal('bulk');
+    });
+
+    // Global listener for the trash can render hack
+    document.getElementById('bulkBarcodeScan')?.addEventListener('renderBulk', renderBulkList);
+
+    document.getElementById('bulkBarcodeScan')?.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        const id = e.target.value.trim();
+        if (!id) return;
+        const comp = state.components.find(c => c.id === id);
+        if (comp) {
+          if (bulkItems[id]) {
+            bulkItems[id].addedQty++;
+          } else {
+            bulkItems[id] = { comp: comp, addedQty: 1 };
+          }
+          UI.showToast(`Added ${comp.name}`, 'success');
+          renderBulkList();
+        } else {
+          UI.showToast('Component not found', 'error');
+        }
+        e.target.value = '';
+      }
+    });
+
+    document.getElementById('commitBulkBtn')?.addEventListener('click', () => {
+      const items = Object.values(bulkItems);
+      if (items.length === 0) {
+        UI.showToast('No items to receive', 'warning');
+        return;
+      }
+      items.forEach(item => {
+        const comp = state.components.find(c => c.id === item.comp.id);
+        if (comp) {
+          comp.quantity += item.addedQty;
+          comp.lastUpdated = new Date().toISOString().split('T')[0];
+        }
+      });
+      Storage.saveComponents();
+      UI.renderInventory();
+      UI.hideModal('bulkReceiveModal');
+      UI.showToast(`Successfully received ${items.length} component types`, 'success');
     });
 
     document.getElementById('printQrBtn')?.addEventListener('click', () => {
@@ -2391,6 +2482,39 @@ const AI = {
       }
     };
     reader.readAsDataURL(file);
+  },
+
+  async summarizeDatasheet() {
+    const name = document.getElementById('compName').value;
+    const datasheet = document.getElementById('compDatasheet').value;
+    
+    if (!name && !datasheet) {
+      UI.showToast("Please enter a Component Name or Datasheet URL first.", "error");
+      return;
+    }
+
+    const promptText = `
+      You are an expert electronics engineer.
+      I have a component named "${name}" ${datasheet ? `with datasheet URL: ${datasheet}` : ''}.
+      Please provide a brief, highly technical summary of this component's key specifications, typical applications, and any important notes (e.g. pinout or voltage limits).
+      Format the response as a short bulleted list or a brief paragraph.
+      Do not hallucinate specs if you are completely unsure about the part.
+    `;
+
+    // Demo Mode bypass
+    const apiKey = this.getApiKey();
+    if (apiKey === "DEMO_MODE") {
+      setTimeout(() => {
+        alert(`🤖 AI Insights for ${name || 'Component'}:\n\n- Key Specs: Operating voltage 2.7V to 5.5V, I2C interface.\n- Applications: Environmental monitoring, weather stations.\n- Notes: Requires pull-up resistors on SDA/SCL lines. Do not expose to volatile chemicals.`);
+      }, 1000);
+      return;
+    }
+
+    const response = await this.callGemini(promptText);
+    if (response) {
+      // Just show an alert for now, or populate a new field. Alert is easiest for a quick summary.
+      alert(`🤖 AI Insights:\n\n${response}`);
+    }
   }
 };
 window.AI = AI;
@@ -2398,6 +2522,7 @@ window.AI = AI;
 // AI Event Listeners
 document.getElementById('aiSearchBtn')?.addEventListener('click', () => AI.smartSearch());
 document.getElementById('aiIdentifyBtn')?.addEventListener('click', () => document.getElementById('aiCameraInput').click());
+document.getElementById('aiInsightsBtn')?.addEventListener('click', () => AI.summarizeDatasheet());
 document.getElementById('aiCameraInput')?.addEventListener('change', (e) => {
   if (e.target.files.length > 0) AI.identifyComponent(e.target.files[0]);
 });

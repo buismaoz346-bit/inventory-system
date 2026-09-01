@@ -227,6 +227,40 @@
     </div>
   </div>
 
+  <!-- ========== BULK RECEIVE MODAL ========== -->
+  <div class="modal-overlay" id="bulkReceiveModal">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h2>Bulk Receive Shipment (Quick Adjust)</h2>
+        <button class="btn-icon modal-close-btn" data-close="bulkReceiveModal"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <div style="display:flex; gap:8px; margin-bottom:16px;">
+          <input type="text" id="bulkBarcodeScan" class="form-control" placeholder="Scan or type Barcode ID here..." style="flex:1;" autofocus>
+          <button class="btn btn-secondary" id="bulkCameraScanBtn"><i data-lucide="camera"></i> Camera</button>
+        </div>
+        
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Component</th>
+              <th width="120">Qty to Add</th>
+              <th width="50"></th>
+            </tr>
+          </thead>
+          <tbody id="bulkReceiveList">
+            <!-- Scanned items will appear here -->
+          </tbody>
+        </table>
+        
+        <div class="modal-footer" style="margin-top:24px;">
+          <button type="button" class="btn btn-ghost" data-close="bulkReceiveModal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="commitBulkBtn"><i data-lucide="check-circle"></i> Commit to Stock</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ========== PROJECT MODAL ========== -->
   <div class="modal-overlay" id="projectModal">
     <div class="modal modal-lg">
